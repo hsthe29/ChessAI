@@ -80,8 +80,11 @@ fun getBishopMoves(row: Int, col: Int, board: Array<CharArray>, moves: MutableLi
             val endRow = row + dir.first*c
             val endCol = col + dir.second*c
             if(onBoard(endRow, endCol)) {
-                if(board[endRow][endCol] == '-' || checkEnemy(board[row][col], board[endRow][endCol])) {
+                if(board[endRow][endCol] == '-') {
                     moves.add(Move(row to col, endRow to endCol, board))
+                } else if(checkEnemy(board[row][col], board[endRow][endCol])) {
+                    moves.add(Move(row to col, endRow to endCol, board))
+                    break
                 } else break
             } else break
         }
