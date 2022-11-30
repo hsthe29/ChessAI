@@ -10,7 +10,7 @@ import view.GameView
 object GameProperties {
     var mode = GameMode.AI_MODE
     var youIsWhite = SimpleBooleanProperty(true)
-    val pieceAte = PieceInfo(false, "", 0)
+    val pieceAte = PieceInfo(false, "", 1)
     var isAIMove = false
     var playerIsWin = PlayerOrder.P2
     var aiTurn = true

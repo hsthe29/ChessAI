@@ -79,7 +79,7 @@ class GameView : View("ChessAI") {
                                     text = "Restart"
                                     startGame()
                                 }
-                                if(property.isAIMove)
+                                if(property.aiTurn)
                                     game.performFirstMove()
                             }
                         }
@@ -139,6 +139,7 @@ class GameView : View("ChessAI") {
         currentWindow?.setOnCloseRequest {Platform.exit()}
         game.player = Player(this)
         property.ate.onChange {
+            println("changed")
             carts[property.pieceAte.player]?.updateCart(property.pieceAte.pieceName, property.pieceAte.mode)
         }
         game.render()

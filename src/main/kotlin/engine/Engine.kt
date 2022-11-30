@@ -40,6 +40,7 @@ class Engine() {
     }
 
     private fun performCellClick(row: Int, col: Int) {
+        GameProperties.aiTurn = false
         if(activeCell == null) {
             if(cells[row][col].isOccupied && board[row][col].isLowerCase()) {
                 activeCell = pairOf(row, col)
@@ -47,11 +48,13 @@ class Engine() {
                 showMoves()
             }
         } else {
-            if(validMove(row, col)) { // hide moves
+            if(validMove(row, col)) { //
                 moveWithUI(movesOfClick.first())
+                println("human: ${GameProperties.aiTurn}")
                 movesOfClick.clear()
                 activeCell = null
                 printBoard()
+                GameProperties.aiTurn = true
                 player?.move()
             } else {
                 if(board[row][col] != '-' && isAlly(board[row][col], board[activeCell!!.first][activeCell!!.second])) {
@@ -149,6 +152,7 @@ class Engine() {
         if(cells[m.endRow][m.endCol].isOccupied) {
             property.pieceAte.pieceName = cells[m.endRow][m.endCol].piece!!.name
             property.pieceAte.player = !property.aiTurn
+            println("eat: ${property.pieceAte.player}")
             property.ate.value++
         }
         cells[m.endRow][m.endCol].piece = cells[m.startRow][m.startCol].releasePiece()

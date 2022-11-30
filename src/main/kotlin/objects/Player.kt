@@ -2,6 +2,7 @@ package objects
 
 import algorithm.findBestMoveMinimax
 import algorithm.findRandomMove
+import engine.GameProperties
 import kotlinx.coroutines.*
 import tornadofx.*
 import view.GameView
@@ -12,6 +13,7 @@ enum class PlayerOrder {
 
 class Player(val view: GameView) {
     fun move() {
+        println("AI: ${GameProperties.aiTurn}")
         GlobalScope.launch {
             view.glass.show()
             delay(100)

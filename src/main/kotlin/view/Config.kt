@@ -83,7 +83,7 @@ class Config : View() {
             action {
                 property.mode = mode.selectedToggle.userData as GameMode
                 property.youIsWhite.set(color.selectedToggle.userData as Boolean)
-                property.isAIMove = !(youFirst.selectedToggle.userData as Boolean)
+                property.aiTurn = !(youFirst.selectedToggle.userData as Boolean)
                 this@Config.close()
             }
         }
