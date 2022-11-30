@@ -1,16 +1,13 @@
 package view
 
-import GameController
 import GameMode
+import engine.GameProperties
 import javafx.geometry.Pos
 import javafx.scene.control.ToggleGroup
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import tornadofx.*
 
-class ChessUI : View() {
-    private val controller: GameController by inject()
+class Config : View() {
+    val property = GameProperties
     private lateinit var mode: ToggleGroup
     private lateinit var color: ToggleGroup
     private lateinit var youFirst: ToggleGroup
@@ -84,15 +81,14 @@ class ChessUI : View() {
             translateY = 8.0
             this.setPrefSize(50.0, 30.0)
             action {
-                controller.mode = mode.selectedToggle.userData as GameMode
-                controller.isWhite.set(color.selectedToggle.userData as Boolean)
-                controller.isAIMove = !(youFirst.selectedToggle.userData as Boolean)
-                controller.currentColor = if(color.selectedToggle.userData as Boolean) "w" else "b"
-                if(controller.isAIMove) {
-                    controller.currentColor = if(controller.currentColor == "b") "w" else "b"
-                }
-                this@ChessUI.close()
+                property.mode = mode.selectedToggle.userData as GameMode
+                property.youIsWhite.set(color.selectedToggle.userData as Boolean)
+                property.isAIMove = !(youFirst.selectedToggle.userData as Boolean)
+                this@Config.close()
             }
         }
+    }
+
+    init {
     }
 }

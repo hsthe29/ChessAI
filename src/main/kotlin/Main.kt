@@ -1,7 +1,6 @@
 import javafx.scene.image.Image
 import javafx.stage.Stage
 import tornadofx.*
-import view.ChessUI
 import view.GameView
 
 class Main : App(GameView::class, Styles::class) {

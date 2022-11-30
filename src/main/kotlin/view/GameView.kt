@@ -1,7 +1,8 @@
 package view
 
-import GameController
 import Styles
+import engine.Engine
+import engine.GameProperties
 import javafx.application.Platform
 import javafx.beans.property.SimpleStringProperty
 import javafx.geometry.Pos
@@ -23,12 +24,12 @@ fun notifyTable(parent: StackPane, view: GameView): VBox {
          alignment = Pos.CENTER
          this.hide()
          this.addClass(Styles.notify_table)
-         label(if(view.controller.playerIsWin == PlayerOrder.P2) "You win!" else "You lose!")
+//         label(if(view.controller.playerIsWin == PlayerOrder.P2) "You win!" else "You lose!")
          hbox(spacing = 30) {
              paddingLeft = 40
              button("New Game") {
                  onLeftClick {
-                     find<ChessUI>().openWindow(owner = null, resizable = false)
+                     find<Config>().openWindow(owner = null, resizable = false)
                      view.close()
                  }
              }
@@ -41,13 +42,13 @@ fun notifyTable(parent: StackPane, view: GameView): VBox {
      }.also { parent.add(it) }
 }
 
-class GameView : View() {
-    val controller: GameController by inject()
-    lateinit var chesssBoard: ChesssBoard
+class GameView : View("ChessAI") {
+    val property = GameProperties
+    lateinit var chessUI: ChessUI
+    val game = Engine()
     private lateinit var notifyEndGame: Pane
     lateinit var glass: Pane
     private val carts = hashMapOf<Boolean, Cart>()
-    val MAX_TIME = 600
     private var secondCount = 0
     private val time = SimpleStringProperty("Computation time: ${secondCount}.000 seconds")
     private lateinit var timeLabel: Text
@@ -58,10 +59,9 @@ class GameView : View() {
         vbox {
             hbox {
                 stackpane {
-                    chesssBoard = chessBoard(controller.isWhite.value, this@GameView)
+                    chessUI = chessUI(property.youIsWhite.value, game)
                     glass = pane {
                         style = "-fx-background-color: rgba(255, 255, 255, 0.0); -fx-background-radius: 0;"
-                        hide()
                     }
                 }
                 line { startX = 0.0; startY = 0.0
@@ -78,19 +78,14 @@ class GameView : View() {
                                 if(text == "Start") {
                                     text = "Restart"
                                     startGame()
-                                } else {
-                                    text = "Start"
-                                    chesssBoard.resetBoardState()
                                 }
-                                println(controller.mode)
-                                if(controller.isAIMove)
-                                    performAIFirstMove()
+                                if(property.isAIMove)
+                                    game.performFirstMove()
                             }
                         }
                         button("New Game") {
                             onLeftClick {
-                                find<ChessUI>().openWindow(owner = null, resizable = false)
-                                this@GameView.close()
+                                find<Config>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
                             }
                         }
                         button("Quit") {
@@ -114,7 +109,7 @@ class GameView : View() {
                     paddingLeft = 130
                     translateY = 50.0
                 }
-                carts[true] = cart(opponentIsWhite = !controller.isWhite.value, this@GameView) {
+                carts[true] = cart(opponentIsWhite = !property.youIsWhite.value, this@GameView) {
                     paddingLeft = 40
                     paddingRight = 30
                     paddingTop = 20
@@ -130,7 +125,7 @@ class GameView : View() {
                     paddingLeft = 60
                     translateY = 50.0
                 }
-                carts[false] = cart(opponentIsWhite = controller.isWhite.value, this@GameView) {
+                carts[false] = cart(opponentIsWhite = property.youIsWhite.value, this@GameView) {
                     paddingLeft = 40
                     paddingRight = 30
                     paddingTop = 20
@@ -139,17 +134,18 @@ class GameView : View() {
         }
         notifyEndGame = notifyTable(this, this@GameView)
     }
-    val aiPlayer: Player
 
     init {
         currentWindow?.setOnCloseRequest {Platform.exit()}
-        aiPlayer = Player(this)
+        game.player = Player(this)
+        property.ate.onChange {
+            carts[property.pieceAte.player]?.updateCart(property.pieceAte.pieceName, property.pieceAte.mode)
+        }
+        game.render()
     }
     private fun startGame() {
-        find<ChessUI>().openWindow(modality = Modality.APPLICATION_MODAL, block = true)
-    }
-    fun performAIFirstMove() {
-        aiPlayer.move()
+        find<Config>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
+        glass.hide()
     }
 
     internal fun showComputationTime() {
@@ -172,6 +168,7 @@ class TimeCounter(val view: GameView) {
     private var now = 0L
 
     inline fun start(cycleCount: Int = 600, crossinline action: () -> Unit) = GlobalScope.launch {
+//        delay(100)
         var temp = 0
         while (temp++ < cycleCount) {
             withContext(Dispatchers.Main) {
@@ -186,7 +183,6 @@ class TimeCounter(val view: GameView) {
         last = System.currentTimeMillis()
         timer = start {
                 view.updateComputationTime()
-                println("HIHI")
         }
     }
 
