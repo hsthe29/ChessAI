@@ -1,33 +1,61 @@
 package objects
 
-import CellPos
-import Styles
-import engine.Engine
+import engine.*
 import javafx.event.EventTarget
 import javafx.geometry.Insets
 import javafx.scene.image.ImageView
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.StackPane
-import tornadofx.*
-import view.GameView
+import tornadofx.add
+import tornadofx.hide
+import tornadofx.imageview
+import tornadofx.opcr
 
-class ChessCell(row: Int, column: Int): StackPane() {
-    val cellPos = CellPos(row, column)
+class ChessCell(val row: Int, val col: Int): StackPane() {
     var piece: Piece? = null
         set(value) {
+            if(field != null)
+                this.children.remove(field!!.image)
             field = value
-            if(this.children.isNotEmpty()) this.children.removeLast()
             if(value != null) {
-                this.add(ImageView(value.image))
+                this.add(value.image)
             }
         }
+    val movableEffect: ImageView
+    val underAttackedEffect: ImageView
+//    val checkmateEffect: ImageView
+    val traceEffect: ImageView
+    val activeEffect: ImageView
     val pieceColor: Char
         get() = if(this.piece != null) this.piece!!.color else '-'
     val isOccupied: Boolean
         get() = piece != null
 
     init {
-        addClass(if (((row - column) and 1) == 0) Styles.board_cell_light else Styles.board_cell_dark)
+        add(ImageView(if (((row - col) and 1) == 0) lightBackground else darkBackground))
+        movableEffect = imageview(movableBackground) {
+            opacity = 0.8
+        }
+        underAttackedEffect = imageview(underAttackedBackground) {
+            opacity = 0.6
+        }
+        traceEffect = imageview(traceBackground)
+        activeEffect = imageview(traceBackground) {
+            opacity = 0.8
+        }
+        resetEffect()
+        setPrefSize(80.0, 80.0)
+    }
+
+    fun resetState() {
+        this.piece = null
+        resetEffect()
+    }
+    fun resetEffect() {
+        this.movableEffect.hide()
+        this.underAttackedEffect.hide()
+        this.traceEffect.hide()
+        this.activeEffect.hide()
     }
 
     fun releasePiece(): Piece? {

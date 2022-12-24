@@ -18,13 +18,14 @@ import objects.*
 import tornadofx.*
 
 
-fun notifyTable(parent: StackPane, view: GameView): VBox {
+fun notification(parent: StackPane, view: GameView): VBox {
      return VBox().apply {
+         spacing = 10.0
          setMaxSize(250.0, 100.0)
          alignment = Pos.CENTER
          this.hide()
          this.addClass(Styles.notify_table)
-//         label(if(view.controller.playerIsWin == PlayerOrder.P2) "You win!" else "You lose!")
+         label(GameProperties.message)
          hbox(spacing = 30) {
              paddingLeft = 40
              button("New Game") {
@@ -46,7 +47,7 @@ class GameView : View("ChessAI") {
     val property = GameProperties
     lateinit var chessUI: ChessUI
     val game = Engine()
-    private lateinit var notifyEndGame: Pane
+    private lateinit var winStatus: VBox
     lateinit var glass: Pane
     private val carts = hashMapOf<Boolean, Cart>()
     private var secondCount = 0
@@ -97,6 +98,11 @@ class GameView : View("ChessAI") {
                         this.translateY = 20.0
                         font = Font.font("Helvetica", FontWeight.BOLD, 30.0);
                     }
+                    button("undo") {
+                        onLeftClick {
+                            game.undoWithUI()
+                        }
+                    }
                 }
             }
             line {
@@ -132,7 +138,7 @@ class GameView : View("ChessAI") {
                 }
             }
         }
-        notifyEndGame = notifyTable(this, this@GameView)
+        winStatus = notification(this, this@GameView)
     }
 
     init {
@@ -147,6 +153,12 @@ class GameView : View("ChessAI") {
     private fun startGame() {
         find<Config>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
         glass.hide()
+    }
+
+    fun showNotification(s: String) {
+        property.message.value = s
+        this.glass.show()
+        this.winStatus.show()
     }
 
     internal fun showComputationTime() {

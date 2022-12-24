@@ -1,33 +1,42 @@
 package engine
 
-import Styles
-import isAlly
-import moveFunction
+import Move
+import SpecialMoves
+import algorithm.TreeNode
+import algorithm.move
+import kotlinx.coroutines.runBlocking
 import objects.ChessCell
-import objects.Move
 import objects.Piece
 import objects.Player
-import pairOf
-import pieceMap
 import tornadofx.*
+import kotlin.math.abs
+
+val charBoard = arrayOf(
+    charArrayOf('R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'),
+    charArrayOf('P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'),
+    charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
+    charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
+    charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
+    charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
+    charArrayOf('p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'),
+    charArrayOf('r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'),
+)
 
 class Engine() {
-    val board = arrayOf(
-        charArrayOf('R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'),
-        charArrayOf('P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'),
-        charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
-        charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
-        charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
-        charArrayOf('-', '-', '-', '-', '-', '-', '-', '-'),
-        charArrayOf('p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'),
-        charArrayOf('r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'),
-    )
+
+    val specialMoves = SpecialMoves(enPassant = null, wk = true, wq = true, bk = true, bq = false)
+    var board = Board(charBoard, 0L, specialMoves,
+        Pair(7, 4), Pair(0, 4))
+
     val cells = Array(8) {i -> Array(8) { j -> ChessCell(i, j) } }
     val property = GameProperties
-    var activeCell: Pair<Int, Int>? = null
+    var activeCell: CPair<Int, Int>? = null
+    var score = 0
+
     val movesOfClick = mutableListOf<Move>()
-    val moveHistory = mutableListOf<Pair<Move, Char>>()
+    val moveTrace = arrayOf(pairOf(-1, -1), pairOf(0, 0))
     var player: Player? = null
+
     init {
         for(i in 0 until 8) {
             for(j in 0 until 8) {
@@ -36,45 +45,63 @@ class Engine() {
                 }
             }
         }
-
     }
 
     private fun performCellClick(row: Int, col: Int) {
+        println("clicked")
         GameProperties.aiTurn = false
         if(activeCell == null) {
-            if(cells[row][col].isOccupied && board[row][col].isLowerCase()) {
+            if(cells[row][col].isOccupied && board[row, col].isLowerCase()) {
+                val temp = board.getLegalMoves(false)
+                this.movesOfClick.clear()
+                for(m in temp) {
+                    if(m.fromRow == row && m.fromCol == col) {
+                        this.movesOfClick.add(m)
+                    }
+                }
                 activeCell = pairOf(row, col)
-                moveFunction[board[row][col]]?.let { it(row, col, board, movesOfClick) }
-                showMoves()
+
+//                for(m in this.movesOfClick)
+//                    println(m)
+                render()
             }
         } else {
-            if(validMove(row, col)) { //
-                moveWithUI(movesOfClick.first())
-                println("human: ${GameProperties.aiTurn}")
-                movesOfClick.clear()
+            val m = validMove(row, col)
+            if(m != null) {
+                moveWithUI(m) // rendered
                 activeCell = null
                 printBoard()
                 GameProperties.aiTurn = true
-                player?.move()
+                search()
             } else {
-                if(board[row][col] != '-' && isAlly(board[row][col], board[activeCell!!.first][activeCell!!.second])) {
+                if(isAlly(board[row, col], board[activeCell!!.first, activeCell!!.second])) {
                     if(activeCell!!.first != row || activeCell!!.second != col) {
                         activeCell = pairOf(row, col)
-                        moveFunction[board[row][col]]?.let { it(row, col, board, movesOfClick) }
-                        showMoves()
+                        val temp = board.getLegalMoves(false)
+                        for(m in temp) {
+                            if(m.fromRow == row && m.fromCol == col) {
+                                this.movesOfClick.add(m)
+                            }
+                        }
                     } else activeCell = null
                 } else activeCell = null
+                render()
             }
         }
+    }
+
+    private fun search() {
+        val root = TreeNode(board, score, true)
+        player?.move(root, depth=4)
     }
 
     private fun printBoard() {
         println("=========================================================")
         println("    ===========================")
-        board.forEach {
+        for(i in 0 until 8) {
             print("    = ")
-            for(i in 0..7) {
-                print("${it[i]}  ")
+            for(j in 0..7) {
+                print("${board[i, j]}  ")
             }
             println("=")
         }
@@ -82,103 +109,76 @@ class Engine() {
         println("=========================================================\n")
     }
 
-    private fun validMove(row: Int, col: Int): Boolean {
+    private fun validMove(row: Int, col: Int): Move? {
         var temp: Move? = null
-        for(move in movesOfClick) {
-            if(row == move.endRow && col == move.endCol) {
+        for(move in this.movesOfClick) {
+            if(row == move.toRow && col == move.toCol) {
                 temp = move
                 break
             }
         }
-        hideMoves()
-        movesOfClick.clear()
-        if(temp != null) {
-            movesOfClick.add(temp)
-        }
-        return temp != null
+        this.movesOfClick.clear()
+        return temp
     }
 
-    private fun showMoves() {
-        cells[activeCell!!.first][activeCell!!.second].addClass(Styles.chess_cell_active)
-
-        for(move in movesOfClick) {
-            with(cells[move.endRow][move.endCol]) {
-                addClass(Styles.movable)
-            }
-        }
-    }
-
-    private fun hideMoves() {
-        cells[activeCell!!.first][activeCell!!.second].removeClass(Styles.chess_cell_active)
-        for(move in movesOfClick) {
-            with(cells[move.endRow][move.endCol]) {
-                removeClass(Styles.movable)
-            }
-        }
-    }
-
-    fun getAllFeasibleMoves(isAITurn: Boolean): Array<Move> {
-        val moves = mutableListOf<Move>()
-        for(i in 0 until 8) {
-            for(j in 0 until 8) {
-                if(isAITurn && board[i][j].isUpperCase()) {
-                    moveFunction[board[i][j].lowercaseChar()]?.let { it(i, j, board, moves) }
-                }
-                if(!isAITurn && board[i][j].isLowerCase()) {
-                    moveFunction[board[i][j].lowercaseChar()]?.let { it(i, j, board, moves) }
-                }
-            }
-        }
-        return moves.toTypedArray()
-    }
-
-    fun move(m: Move) {
-        moveHistory.add(pairOf(m, board[m.endRow][m.endCol]))
-        board[m.endRow][m.endCol] = board[m.startRow][m.startCol]
-        board[m.startRow][m.startCol] = '-'
-    }
-
-    fun undo() {
-        if(moveHistory.isNotEmpty()) {
-            val (m, char) = moveHistory.removeLast()
-            board[m.startRow][m.startCol] = board[m.endRow][m.endCol]
-            board[m.endRow][m.endCol] = char
-        }
-        else println("Error!")
+    private fun updateBoard(m: Move) {
+        val temp = move(board, m, false)
+        board = temp.board
+        score = temp.score
     }
 
     fun moveWithUI(m: Move) {
-        move(m)
-        if(cells[m.endRow][m.endCol].isOccupied) {
-            property.pieceAte.pieceName = cells[m.endRow][m.endCol].piece!!.name
+        updateBoard(m)
+        if(cells[m.toRow][m.toCol].isOccupied) {
+            property.pieceAte.pieceName = cells[m.toRow][m.toCol].piece!!.name
             property.pieceAte.player = !property.aiTurn
             println("eat: ${property.pieceAte.player}")
             property.ate.value++
         }
-        cells[m.endRow][m.endCol].piece = cells[m.startRow][m.startCol].releasePiece()
-        moveHistory.clear()
+        moveTrace[0] = pairOf(m.fromRow, m.fromCol)
+        moveTrace[1] = pairOf(m.toRow, m.toCol)
+        render()
         printBoard()
     }
 
+    fun undoWithUI() {
+//        undo()
+//        render()
+    }
+
     fun performFirstMove() {
-        player?.move()
+        search()
     }
 
     fun render() {
         for(i in 0 until 8) {
             for(j in 0 until 8) {
-                if(board[i][j].isLowerCase()) {
-                    cells[i][j].piece = pieceMap[board[i][j]]?.let { Piece('w', it) }
+                cells[i][j].resetState()
+                if(board[i, j].isLowerCase()) {
+                    cells[i][j].piece = pieceMap[board[i, j]]?.let { Piece('w', it) }
                 }
-                if(board[i][j].isUpperCase()) {
-                    cells[i][j].piece = pieceMap[board[i][j]]?.let { Piece('b', it) }
+                if(board[i, j].isUpperCase()) {
+                    cells[i][j].piece = pieceMap[board[i, j]]?.let { Piece('b', it) }
                 }
             }
         }
+        activeCell?.let{ cells[it.first][it.second].activeEffect.show() }
+        if(moveTrace[0].first > -1) {
+            cells[moveTrace[0].first][moveTrace[0].second].traceEffect.show()
+            cells[moveTrace[1].first][moveTrace[1].second].traceEffect.show()
+        }
+//        if(whiteCheckmate)
+//            cells[whiteKingPos.first][whiteKingPos.second].underAttackedEffect.show()
+//        if(blackCheckmate)
+//            cells[blackKingPos.first][blackKingPos.second].underAttackedEffect.show()
+        for(m in this.movesOfClick) {
+            if(cells[m.toRow][m.toCol].isOccupied)
+                cells[m.toRow][m.toCol].underAttackedEffect.show()
+            cells[m.toRow][m.toCol].movableEffect.show()
+        }
     }
-    fun resetUI() {
-        for(i in 0 until 8)
-            for(j in 0 until 8)
-                cells[i][j].releasePiece()
-    }
+
+//    fun zipBoard(): Board {
+//
+//    }
 }

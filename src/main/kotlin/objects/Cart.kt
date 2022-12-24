@@ -91,6 +91,9 @@ class Cart(opponentIsWhite: Boolean, val view: GameView): GridPane() {
             count[pieceName]?.apply {
                 set(value + 1)
             }
+            if(pieceName == "king") {
+                view.showNotification(if(this.color == "b") "Congratulations!. You Win!" else "Unfortunately!. You Lose!")
+            }
         } else {
 
         }

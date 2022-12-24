@@ -1,6 +1,6 @@
 package view
 
-import GameMode
+import engine.GameMode
 import engine.GameProperties
 import javafx.geometry.Pos
 import javafx.scene.control.ToggleGroup
@@ -87,8 +87,5 @@ class Config : View() {
                 this@Config.close()
             }
         }
-    }
-
-    init {
     }
 }

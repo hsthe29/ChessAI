@@ -12,6 +12,7 @@ class Styles: Stylesheet() {
         val movable by cssclass()
         val attack by cssclass()
         val chess_cell_active by cssclass()
+        val trace_cell by cssclass()
         val notify_table by cssclass()
     }
     init {
@@ -61,6 +62,13 @@ class Styles: Stylesheet() {
             borderRadius += box(5.px)
             opacity = 0.8
         }
+        trace_cell {
+            borderColor += box(c("#2cfc03"))
+            borderWidth += box(4.px)
+//            backgroundColor += c("#2cfc03", 0.5)
+            borderRadius += box(40.px)
+        }
+
         notify_table {
             borderColor += box(Color.BLUE)
             borderWidth += box(2.px)

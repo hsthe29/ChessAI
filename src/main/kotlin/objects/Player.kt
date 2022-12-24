@@ -1,6 +1,8 @@
 package objects
 
-import algorithm.findBestMoveMinimax
+import Move
+import algorithm.MTDSearch
+import algorithm.TreeNode
 import algorithm.findRandomMove
 import engine.GameProperties
 import kotlinx.coroutines.*
@@ -12,7 +14,8 @@ enum class PlayerOrder {
 }
 
 class Player(val view: GameView) {
-    fun move() {
+    private val searcher = MTDSearch()
+    fun move(node: TreeNode, depth: Int = 6) {
         println("AI: ${GameProperties.aiTurn}")
         GlobalScope.launch {
             view.glass.show()
@@ -21,13 +24,13 @@ class Player(val view: GameView) {
             var move: Move? = null
             withContext(Dispatchers.Default) {
                 // computation move here
-                move =  findBestMoveMinimax(view.game)
-                if(move == null)
-                    move = findRandomMove(view.game.getAllFeasibleMoves(true))
+                val (_, _move, score) = searcher.search(node, depth)
+                if(_move == null) {
+                    move = findRandomMove(node.getAllMoves())
+                } else move = _move
             }
             withContext(Dispatchers.Main) {
                 // when computation finished, update UI with `click`
-//                 example: click(2, 0)
                 view.game.moveWithUI(move!!)
             }
             view.glass.hide()
