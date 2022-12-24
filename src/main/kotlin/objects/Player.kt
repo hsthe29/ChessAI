@@ -31,7 +31,7 @@ class Player(val view: GameView) {
             }
             withContext(Dispatchers.Main) {
                 // when computation finished, update UI with `click`
-                view.game.moveWithUI(move!!)
+                view.game.moveWithUI(move!!, true)
             }
             view.glass.hide()
             view.timer.stopTimer()

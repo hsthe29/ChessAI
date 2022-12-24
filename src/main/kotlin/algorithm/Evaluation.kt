@@ -11,7 +11,7 @@ const val CHECK_POINT = 15000
 const val ALPHA = -10000
 const val BETA = 10000
 
-const val TABLE_SIZE = 1e7
+const val TABLE_SIZE = 400_000
 
 // Constants for tuning search
 const val QS_LIMIT = 219

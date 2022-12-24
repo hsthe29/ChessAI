@@ -65,6 +65,16 @@ fun isCellUnderAttacked(row: Int, col: Int, moves: MutableList<Move>): Boolean {
     return false
 }
 
+fun printBitboard(bitboard: Long) {
+    for(i in 0..7) {
+        for(j in 0..7) {
+            print("${if(isAttacked(bitboard, i, j)) 1 else 0} ")
+        }
+
+        println()
+    }
+}
+
 // ________________________________________________________________________
 // ________________________________________________________________________
 // ________________________________________________________________________

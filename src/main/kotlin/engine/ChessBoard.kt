@@ -63,6 +63,9 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
         } else {
             val checkmate = isAttacked(this.bitboard, whiteKingPos.first, whiteKingPos.second)
             this.checkPinsAndMate(whiteKingPos, checkmate)
+//            println("checkmate: $checkmate")
+//            printBitboard(this.bitboard)
+//            println()
             if (mateLines.size > 1) {
                 movesOfKing(whiteKingPos.first, whiteKingPos.second, moves, this)
             } else {
@@ -73,6 +76,13 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
                         }
                     }
                 }
+
+//                for(m in moves)
+//                    println(m)
+//                println("+++++++++++++++++++++++++++++++")
+
+//                if(mateLines.size > 0)
+//                    println("mate: ${mateLines[0]}")
 
                 if (mateLines.size > 0)
                     moves.removeIf { board[it.fromRow][it.fromCol] != 'k' && Pair(it.toRow, it.toCol) !in mateLines[0] }
@@ -96,7 +106,7 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
                 if (row in 0 until 8 && col in 0 until 8) {
                     if (checkEnemy(king, board[row][col])) {
                         if (pin == null) {
-                            if (continuous)
+                            if(continuous && board[row][col] in "rkqRKQ")
                                 mateLines.add(Line(kingPos.first, kingPos.second, row, col))
                         } else {
                             pins.add(pin)
@@ -124,8 +134,14 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
                 if (row in 0 until 8 && col in 0 until 8) {
                     if (checkEnemy(king, board[row][col])) {
                         if (pin == null) {
-                            if (continuous)
-                                mateLines.add(Line(kingPos.first, kingPos.second, row, col))
+                            if(continuous) {
+                                if(board[row][col] in "bkqBKQ")
+                                    mateLines.add(Line(kingPos.first, kingPos.second, row, col))
+                                else if (board[row][col] == 'p' && king == 'K' && c == 1 && dir.first == 1)
+                                    mateLines.add(Line(kingPos.first, kingPos.second, row, col))
+                                else if(board[row][col] == 'P' && king == 'k' && c == 1 && dir.first == -1)
+                                    mateLines.add(Line(kingPos.first, kingPos.second, row, col))
+                            }
                         } else {
                             pins.add(pin)
                         }
@@ -156,7 +172,7 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
             val row = kingPos.first + dr
             val col = kingPos.second + dc
             if (row in 0 until 8 && col in 0 until 8) {
-                if (checkEnemy(king, board[row][col])) {
+                if (checkEnemy(king, board[row][col]) && board[row][col] in "nN") {
                     mateLines.add(Line(kingPos.first, kingPos.second, row, col))
                 }
             }

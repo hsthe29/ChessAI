@@ -61,6 +61,7 @@ class Engine() {
                 }
                 activeCell = pairOf(row, col)
 
+//                println("Legal: ")
 //                for(m in this.movesOfClick)
 //                    println(m)
                 render()
@@ -68,9 +69,9 @@ class Engine() {
         } else {
             val m = validMove(row, col)
             if(m != null) {
-                moveWithUI(m) // rendered
+                moveWithUI(m, false) // rendered
                 activeCell = null
-                printBoard()
+//                printBoard()
                 GameProperties.aiTurn = true
                 search()
             } else {
@@ -92,7 +93,7 @@ class Engine() {
 
     private fun search() {
         val root = TreeNode(board, score, true)
-        player?.move(root, depth=4)
+        player?.move(root, depth=7)
     }
 
     private fun printBoard() {
@@ -121,14 +122,14 @@ class Engine() {
         return temp
     }
 
-    private fun updateBoard(m: Move) {
-        val temp = move(board, m, false)
+    private fun updateBoard(m: Move, aiMove: Boolean) {
+        val temp = move(board, m, aiMove)
         board = temp.board
         score = temp.score
     }
 
-    fun moveWithUI(m: Move) {
-        updateBoard(m)
+    fun moveWithUI(m: Move, aiMove: Boolean) {
+        updateBoard(m, aiMove)
         if(cells[m.toRow][m.toCol].isOccupied) {
             property.pieceAte.pieceName = cells[m.toRow][m.toCol].piece!!.name
             property.pieceAte.player = !property.aiTurn
@@ -172,6 +173,7 @@ class Engine() {
 //        if(blackCheckmate)
 //            cells[blackKingPos.first][blackKingPos.second].underAttackedEffect.show()
         for(m in this.movesOfClick) {
+            println("hilight $m")
             if(cells[m.toRow][m.toCol].isOccupied)
                 cells[m.toRow][m.toCol].underAttackedEffect.show()
             cells[m.toRow][m.toCol].movableEffect.show()

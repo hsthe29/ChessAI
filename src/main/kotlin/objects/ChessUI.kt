@@ -36,12 +36,13 @@ class ChessCell(val row: Int, val col: Int): StackPane() {
         movableEffect = imageview(movableBackground) {
             opacity = 0.8
         }
-        underAttackedEffect = imageview(underAttackedBackground) {
-            opacity = 0.6
-        }
+
         traceEffect = imageview(traceBackground)
         activeEffect = imageview(traceBackground) {
             opacity = 0.8
+        }
+        underAttackedEffect = imageview(underAttackedBackground) {
+            opacity = 0.6
         }
         resetEffect()
         setPrefSize(80.0, 80.0)
