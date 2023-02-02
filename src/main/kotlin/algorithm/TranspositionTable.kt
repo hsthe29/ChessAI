@@ -1,8 +1,8 @@
 package algorithm
 
 import Move
-import engine.Board
-import engine.Entry
+import core.Board
+import core.Entry
 import kotlin.random.Random
 
 val ZobristTable = Array(8) { Array(8) {LongArray(12)} }

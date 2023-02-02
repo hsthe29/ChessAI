@@ -1,22 +1,21 @@
 package view
 
 import Styles
-import engine.Engine
-import engine.GameProperties
+import algorithm.checkStatus
+import core.AI
+import core.BLACK
+import core.GameMode
+import core.engine
 import javafx.application.Platform
-import javafx.beans.property.SimpleStringProperty
 import javafx.geometry.Pos
-import javafx.scene.layout.Pane
 import javafx.scene.layout.StackPane
 import javafx.scene.layout.VBox
 import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.scene.text.Text
 import javafx.stage.Modality
-import kotlinx.coroutines.*
 import objects.*
 import tornadofx.*
-
 
 fun notification(parent: StackPane, view: GameView): VBox {
      return VBox().apply {
@@ -25,7 +24,7 @@ fun notification(parent: StackPane, view: GameView): VBox {
          alignment = Pos.CENTER
          this.hide()
          this.addClass(Styles.notify_table)
-         label(GameProperties.message)
+         label("Them nhan")
          hbox(spacing = 30) {
              paddingLeft = 40
              button("New Game") {
@@ -44,27 +43,14 @@ fun notification(parent: StackPane, view: GameView): VBox {
 }
 
 class GameView : View("ChessAI") {
-    val property = GameProperties
-    lateinit var chessUI: ChessUI
-    val game = Engine()
     private lateinit var winStatus: VBox
-    lateinit var glass: Pane
-    private val carts = hashMapOf<Boolean, Cart>()
-    private var secondCount = 0
-    private val time = SimpleStringProperty("Computation time: ${secondCount}.000 seconds")
     private lateinit var timeLabel: Text
-    val timer = TimeCounter(this)
 
     override val root = stackpane {
         setPrefSize(1200.0, 820.0)
         vbox {
             hbox {
-                stackpane {
-                    chessUI = chessUI(property.youIsWhite.value, game)
-                    glass = pane {
-                        style = "-fx-background-color: rgba(255, 255, 255, 0.0); -fx-background-radius: 0;"
-                    }
-                }
+                add(chessBoard)
                 line { startX = 0.0; startY = 0.0
                     endX = 0.0; endY = 660.0
                     addClass(Styles.line)
@@ -74,33 +60,30 @@ class GameView : View("ChessAI") {
                         paddingLeft = 120
                         paddingTop = 10
                         button("Start") {
-
                             onLeftClick {
                                 if(text == "Start") {
                                     text = "Restart"
                                     startGame()
                                 }
-                                if(property.aiTurn)
-                                    game.performFirstMove()
                             }
                         }
                         button("New Game") {
                             onLeftClick {
-                                find<Config>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
+                                find<Config>("core" to engine).openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
                             }
                         }
                         button("Quit") {
                             onLeftClick { this@GameView.close() }
                         }
                     }
-                    timeLabel = text(time).apply {
+                    timeLabel = text(engine.time).apply {
                         paddingLeft = 20
                         this.translateY = 20.0
                         font = Font.font("Helvetica", FontWeight.BOLD, 30.0);
                     }
                     button("undo") {
                         onLeftClick {
-                            game.undoWithUI()
+                            //game.undoWithUI()
                         }
                     }
                 }
@@ -115,12 +98,11 @@ class GameView : View("ChessAI") {
                     paddingLeft = 130
                     translateY = 50.0
                 }
-                carts[true] = cart(opponentIsWhite = !property.youIsWhite.value, this@GameView) {
+                add(chessBoard.carts.yourItems.apply {
                     paddingLeft = 40
                     paddingRight = 30
                     paddingTop = 20
-                }
-
+                })
                 line {
                     startX = 0.0; startY = 0.0
                     endX = 0.0; endY = 150.0
@@ -131,11 +113,11 @@ class GameView : View("ChessAI") {
                     paddingLeft = 60
                     translateY = 50.0
                 }
-                carts[false] = cart(opponentIsWhite = property.youIsWhite.value, this@GameView) {
+                add(chessBoard.carts.opponentItems.apply{
                     paddingLeft = 40
                     paddingRight = 30
                     paddingTop = 20
-                }
+                })
             }
         }
         winStatus = notification(this, this@GameView)
@@ -143,66 +125,18 @@ class GameView : View("ChessAI") {
 
     init {
         currentWindow?.setOnCloseRequest {Platform.exit()}
-        game.player = Player(this)
-        property.ate.onChange {
-            println("changed")
-            carts[property.pieceAte.player]?.updateCart(property.pieceAte.pieceName, property.pieceAte.mode)
-        }
-        game.render()
     }
     private fun startGame() {
         find<Config>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
-        glass.hide()
+        chessBoard.update()
+        engine.search()
     }
 
-    fun showNotification(s: String) {
-        property.message.value = s
-        this.glass.show()
-        this.winStatus.show()
-    }
-
-    internal fun showComputationTime() {
-        this.secondCount = 0
-        this.time.value = "Computation time: 0.000 seconds"
-    }
-
-    internal fun updateComputationTime() {
-        time.value = "Computation time: ${secondCount++}.xxx seconds"
-    }
-
-    internal fun updateFinalTime(millis: Long) {
-        time.value = "Computation time: ${millis/1000.0} seconds"
-    }
+//    fun showNotification(s: String) {
+//        property.message.value = s
+//        this.winStatus.show()
+//    }
 }
 
-class TimeCounter(val view: GameView) {
-    private var timer: Job? = null
-    private var last = 0L
-    private var now = 0L
 
-    inline fun start(cycleCount: Int = 600, crossinline action: () -> Unit) = GlobalScope.launch {
-//        delay(100)
-        var temp = 0
-        while (temp++ < cycleCount) {
-            withContext(Dispatchers.Main) {
-                action()
-            }
-            delay(1000L)
-        }
-    }
-
-    internal fun startTimer() {
-        view.showComputationTime()
-        last = System.currentTimeMillis()
-        timer = start {
-                view.updateComputationTime()
-        }
-    }
-
-    internal fun stopTimer() {
-        now = System.currentTimeMillis()
-        view.updateFinalTime(now - last)
-        this.timer?.cancel()
-    }
-}
 

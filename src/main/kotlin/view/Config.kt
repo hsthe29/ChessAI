@@ -1,15 +1,14 @@
 package view
 
-import engine.GameMode
-import engine.GameProperties
+import core.ChessEngine
+import core.GameMode
+import core.engine
 import javafx.geometry.Pos
 import javafx.scene.control.ToggleGroup
 import tornadofx.*
 
-class Config : View() {
-    val property = GameProperties
+class Config() : View() {
     private lateinit var mode: ToggleGroup
-    private lateinit var color: ToggleGroup
     private lateinit var youFirst: ToggleGroup
 
     override val root = vbox(alignment = Pos.CENTER, spacing = 10) {
@@ -21,51 +20,31 @@ class Config : View() {
                         paddingTop = 5
                     }
                     mode = togglegroup {
-                        radiobutton("AI mode") {
+                        radiobutton("vs AI") {
                             paddingTop = 5
                             isSelected = true
-                            userData = GameMode.AI_MODE
-                        }
-                        radiobutton("PvP") {
-                            paddingTop = 5
-                            userData = GameMode.PVP
+                            userData = GameMode.PvsCOM
                         }
                         radiobutton("AI vs AI") {
                             paddingTop = 5
                             paddingRight = 50
-                            userData = GameMode.AI_FULL
+                            userData = GameMode.COMvsCOM
                         }
                     }
                 }
                 hbox(spacing = 10) {
-                    label("Select color: ") {
-                        paddingTop = 5
-                    }
-                    color = togglegroup {
-                        radiobutton("White") {
-                            paddingTop = 5
-                            isSelected = true
-                            userData = true
-                        }
-                        radiobutton("Black") {
-                            paddingTop = 5
-                            userData = false
-                        }
-                    }
-                }.hide()
-                hbox(spacing = 10) {
-                    label("You move first: ") {
+                    label("First: ") {
                         paddingTop = 5
                     }
                     youFirst = togglegroup {
-                        radiobutton("Yes") {
+                        radiobutton("WHITE") {
                             paddingTop = 5
                             isSelected = true
-                            userData = true
+                            userData = 'w'
                         }
-                        radiobutton("No") {
+                        radiobutton("BLACK") {
                             paddingTop = 5
-                            userData = false
+                            userData = 'b'
                         }
                     }
                 }
@@ -81,9 +60,8 @@ class Config : View() {
             translateY = 8.0
             this.setPrefSize(50.0, 30.0)
             action {
-                property.mode = mode.selectedToggle.userData as GameMode
-                property.youIsWhite.set(color.selectedToggle.userData as Boolean)
-                property.aiTurn = !(youFirst.selectedToggle.userData as Boolean)
+                engine.mode = mode.selectedToggle.userData as GameMode
+                engine.turn = youFirst.selectedToggle.userData as Char
                 this@Config.close()
             }
         }

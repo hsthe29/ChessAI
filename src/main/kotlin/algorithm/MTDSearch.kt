@@ -2,12 +2,12 @@ package algorithm
 
 import SpecialMoves
 import Move
-import engine.Entry
-import engine.Board
+import core.Entry
+import core.Board
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.abs
-import engine.*
+import core.*
 
 data class TreeNode(val board: Board, val score: Int, val isMaxNode: Boolean, val move: Move? = null) {
 
@@ -19,36 +19,34 @@ data class TreeNode(val board: Board, val score: Int, val isMaxNode: Boolean, va
 
 fun move(board: Board, m: Move, isMaxNode: Boolean): TreeNode {
     // di chuyển quân cờ
-    val newBoard = board.copyInstance()
-    if(m.isEnPassantMove) {
-        newBoard[m.fromRow][m.toCol] = '-'
-        newBoard[m.toRow][m.toCol] = newBoard[m.fromRow][m.fromCol]
-        newBoard[m.fromRow][m.fromCol] = '-'
-    } else if(m.isCastleMove) {
-        newBoard[m.toRow][m.toCol] = newBoard[m.fromRow][m.fromCol]
-        newBoard[m.fromRow][m.fromCol] = '-'
-        if(m.toCol - m.fromCol == 2) {
-            newBoard[m.toRow][m.toCol-1] = newBoard[m.toRow][m.toCol+1]
-            newBoard[m.toRow][m.toCol+1] = '-'
-        } else {
-            newBoard[m.toRow][m.toCol+1] = newBoard[m.toRow][m.toCol-2]
-            newBoard[m.toRow][m.toCol-2] = '-'
-        }
-    } else {
-        newBoard[m.toRow][m.toCol] = newBoard[m.fromRow][m.fromCol]
-        newBoard[m.fromRow][m.fromCol] = '-'
+    val data = board.data()
+    /*if(m.isEnPassantMove) {
+        data[m.fromRow][m.toCol] = '-'
+        data[m.toRow][m.toCol] = data[m.fromRow][m.fromCol]
     }
+    else if(m.isCastleMove) {
+        data[m.toRow][m.toCol] = data[m.fromRow][m.fromCol]
+        if(m.toCol - m.fromCol == 2) {
+            data[m.toRow][m.toCol-1] = data[m.toRow][m.toCol+1]
+            data[m.toRow][m.toCol+1] = '-'
+        } else {
+            data[m.toRow][m.toCol+1] = data[m.toRow][m.toCol-2]
+            data[m.toRow][m.toCol-2] = '-'
+        }
+    }
+    else { data[m.toRow][m.toCol] = data[m.fromRow][m.fromCol] }
+    data[m.fromRow][m.fromCol] = '-'
 
     // cập nhật vị trí của quân vua
-    var wKPos = board.whiteKingPos
-    var bKPos = board.blackKingPos
+    var wKPos = board.wkLoc
+    var bKPos = board.bkLoc
     when(board[m.fromRow, m.fromCol]) {
         'k' -> wKPos = Pair(m.toRow, m.toCol)
         'K' -> bKPos =Pair(m.toRow, m.toCol)
     }
 
     // cập nhật en passant
-    val enPassant = if(newBoard[m.fromRow][m.fromCol].lowercaseChar() == 'p' && abs(m.fromRow - m.toRow) == 2)
+    val enPassant = if(board[m.fromRow, m.fromCol].lowercaseChar() == 'p' && abs(m.fromRow - m.toRow) == 2)
         Pair((m.fromRow + m.toRow)/2, m.fromCol)
     else  null
 
@@ -101,12 +99,12 @@ fun move(board: Board, m: Move, isMaxNode: Boolean): TreeNode {
     }
 
     // cập nhật bitboard
-    var bitboard = bitboardOf(newBoard, isMaxNode)
-    val searchBoard = Board(newBoard, bitboard, specs, wKPos, bKPos)
+    var bitboard = bitboardOf(data, isMaxNode)
+    val searchBoard = Board(data, bitboard, specs, wKPos, bKPos)
 //    println(" ---->  Bitboard: ")
 //    printBitboard(bitboard)
-//    println()
-    return TreeNode(searchBoard, evaluateScore(newBoard), !isMaxNode, m)
+//    println()*/
+    return TreeNode(board, evaluateScore(data), !isMaxNode, m)
 }
 
 enum class SearchingMode {
@@ -129,6 +127,7 @@ class MTDSearch(var timeLimit: Int = 0) {
             SearchingMode.MINIMAX -> 1
             SearchingMode.LIMITED_TIME -> iterativeDeepeningMTD(node, depth)
         }
+        println("Move: ${this.tp.getMove(hash, true)}")
         return kotlin.Triple(depth, this.tp.getMove(hash, true), this.tp.getScore(hash, true, depth, true)!!.lower)
     }
 

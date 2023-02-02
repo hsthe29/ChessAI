@@ -1,10 +1,7 @@
-package engine
+package core
 
 import Move
 import SpecialMoves
-import castleMoves
-import movesOf
-import movesOfKing
 
 enum class PinDirection {
     ROW, COL, F_DIAG, B_DIAG
@@ -16,85 +13,68 @@ data class Line(val x1: Int, val y1: Int, val x2: Int, val y2: Int) {
         val a2 = point.second - y1
         val b1 = x2 - point.first
         val b2 = y2 - point.second
-
         return (a1*b2 == a2*b1) && (a1*b1 >= 0) && (a2*b2 >= 0)
     }
 }
-class Board(private val board: Array<CharArray>, var bitboard: Long, var specialMoves: SpecialMoves,
-            var whiteKingPos: Pair<Int, Int>, var blackKingPos: Pair<Int, Int>) {
+class Board(private val data: Array<CharArray>, var bitboard: Long, var specialMoves: SpecialMoves,
+            var wkLoc: Pair<Int, Int>, var bkLoc: Pair<Int, Int>) {
     val pins = mutableListOf<Pair<Int, Int>>()
     val mateLines = mutableListOf<Line>()
 
-    operator fun get(row: Int, col: Int) = board[row][col]
+    operator fun get(row: Int, col: Int) = data[row][col]
     operator fun set(row: Int, col: Int, value: Char) {
-        board[row][col] = value
+        data[row][col] = value
     }
 
-    fun copyInstance() = Array(board.size) { board[it].clone() }
+    /** return copy of board data */
+    fun data() = Array(data.size) { data[it].clone() }
 
     fun getLegalMoves(isMaxNode: Boolean): MutableList<Move> {
         val moves = mutableListOf<Move>()
-        pins.clear()
+        /*pins.clear()
         mateLines.clear()
         if (isMaxNode) {
-            val checkmate = isAttacked(this.bitboard, blackKingPos.first, blackKingPos.second)
-            this.checkPinsAndMate(blackKingPos, checkmate)
-//            println(mateLines.size)
+            val checkmate = isAttacked(this.bitboard, bkLoc.first, bkLoc.second)
+            this.checkPinsAndMate(bkLoc, checkmate)
             if (mateLines.size > 1) {
-                movesOfKing(blackKingPos.first, blackKingPos.second, moves, this)
+                movesOfKing(bkLoc.first, bkLoc.second, moves, this)
             } else {
                 for (i in 0 until 8) {
                     for (j in 0 until 8) {
-                        if (board[i][j].isUpperCase()) {
-                            movesOf(board[i][j])(i, j, moves, this)
+                        if (data[i][j].isUpperCase()) {
+                            movesOf(data[i][j])(i, j, moves, this)
                         }
                     }
                 }
                 if (mateLines.size > 0) {
-                    moves.removeIf {
-                        board[it.fromRow][it.fromCol] != 'K' && Pair(
-                            it.toRow,
-                            it.toCol
-                        ) !in mateLines[0]
-                    }
-                } else castleMoves(isMaxNode, moves, this)
+                    moves.removeIf { data[it.fromRow][it.fromCol] != 'K' && Pair(it.toRow, it.toCol) !in mateLines[0] }
+                } else castleMoves(true, moves, this)
             }
 
         } else {
-            val checkmate = isAttacked(this.bitboard, whiteKingPos.first, whiteKingPos.second)
-            this.checkPinsAndMate(whiteKingPos, checkmate)
-//            println("checkmate: $checkmate")
-//            printBitboard(this.bitboard)
-//            println()
+            val checkmate = isAttacked(this.bitboard, wkLoc.first, wkLoc.second)
+            this.checkPinsAndMate(wkLoc, checkmate)
             if (mateLines.size > 1) {
-                movesOfKing(whiteKingPos.first, whiteKingPos.second, moves, this)
+                movesOfKing(wkLoc.first, wkLoc.second, moves, this)
             } else {
                 for (i in 0 until 8) {
                     for (j in 0 until 8) {
-                        if (board[i][j].isLowerCase()) {
-                            movesOf(board[i][j])(i, j, moves, this)
+                        if (data[i][j].isLowerCase()) {
+                            movesOf(data[i][j])(i, j, moves, this)
                         }
                     }
                 }
-
-//                for(m in moves)
-//                    println(m)
-//                println("+++++++++++++++++++++++++++++++")
-
-//                if(mateLines.size > 0)
-//                    println("mate: ${mateLines[0]}")
-
                 if (mateLines.size > 0)
-                    moves.removeIf { board[it.fromRow][it.fromCol] != 'k' && Pair(it.toRow, it.toCol) !in mateLines[0] }
-                else castleMoves(isMaxNode, moves, this)
+                    moves.removeIf { data[it.fromRow][it.fromCol] != 'k' && Pair(it.toRow, it.toCol) !in mateLines[0] }
+                else castleMoves(false, moves, this)
             }
-        }
+        }*/
         return moves
     }
 
     fun checkPinsAndMate(kingPos: Pair<Int, Int>, checkmate: Boolean) {
         // straight check
-        val king = board[kingPos.first][kingPos.second]
+        val king = data[kingPos.first][kingPos.second]
         var pin: Pair<Int, Int>? = null
         val straight = arrayOf(Pair(1, 0), Pair(0, 1), Pair(-1, 0), Pair(0, -1))
         for (dir in straight) {
@@ -104,16 +84,16 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
                 val row = kingPos.first + c * dir.first
                 val col = kingPos.second + c * dir.second
                 if (row in 0 until 8 && col in 0 until 8) {
-                    if (checkEnemy(king, board[row][col])) {
+                    if (isEnemy(king, data[row][col])) {
                         if (pin == null) {
-                            if(continuous && board[row][col] in "rkqRKQ")
+                            if(continuous && data[row][col] in "rkqRKQ")
                                 mateLines.add(Line(kingPos.first, kingPos.second, row, col))
                         } else {
                             pins.add(pin)
                         }
                         break
                     }
-                    if (isAlly(king, board[row][col])) {
+                    if (isAlly(king, data[row][col])) {
                         if (pin == null) {
                             continuous = false
                             pin = Pair(row, col)
@@ -132,14 +112,14 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
                 val row = kingPos.first + c * dir.first
                 val col = kingPos.second + c * dir.second
                 if (row in 0 until 8 && col in 0 until 8) {
-                    if (checkEnemy(king, board[row][col])) {
+                    if (isEnemy(king, data[row][col])) {
                         if (pin == null) {
                             if(continuous) {
-                                if(board[row][col] in "bkqBKQ")
+                                if(data[row][col] in "bkqBKQ")
                                     mateLines.add(Line(kingPos.first, kingPos.second, row, col))
-                                else if (board[row][col] == 'p' && king == 'K' && c == 1 && dir.first == 1)
+                                else if (data[row][col] == 'p' && king == 'K' && c == 1 && dir.first == 1)
                                     mateLines.add(Line(kingPos.first, kingPos.second, row, col))
-                                else if(board[row][col] == 'P' && king == 'k' && c == 1 && dir.first == -1)
+                                else if(data[row][col] == 'P' && king == 'k' && c == 1 && dir.first == -1)
                                     mateLines.add(Line(kingPos.first, kingPos.second, row, col))
                             }
                         } else {
@@ -147,7 +127,7 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
                         }
                         break
                     }
-                    if (isAlly(king, board[row][col])) {
+                    if (isAlly(king, data[row][col])) {
                         if (pin == null) {
                             continuous = false
                             pin = Pair(row, col)
@@ -172,7 +152,7 @@ class Board(private val board: Array<CharArray>, var bitboard: Long, var special
             val row = kingPos.first + dr
             val col = kingPos.second + dc
             if (row in 0 until 8 && col in 0 until 8) {
-                if (checkEnemy(king, board[row][col]) && board[row][col] in "nN") {
+                if (isEnemy(king, data[row][col]) && data[row][col] in "nN") {
                     mateLines.add(Line(kingPos.first, kingPos.second, row, col))
                 }
             }
@@ -188,8 +168,8 @@ fun isDiagonal(char: Char): Boolean {
     return char.lowercaseChar() in "bq"
 }
 
-fun removeResidualMoves(moves: MutableList<Move>, board: Board, pins: MutableList<Pin>, line: Line)
-    = moves.removeIf { board[it.fromRow, it.fromCol] !in "kK" && Pair(it.toRow, it.toCol) !in line }
+/*fun removeResidualMoves(moves: MutableList<Move>, board: Board, pins: MutableList<Pin>, line: Line)
+    = moves.removeIf { board[it.fromRow, it.fromCol] !in "kK" && Pair(it.toRow, it.toCol) !in line }*/
 
 fun isAttacked(bitboard: Long, row: Int, col: Int): Boolean {
     return ((bitboard shr (row*8 + col)) and 1L) == 1L

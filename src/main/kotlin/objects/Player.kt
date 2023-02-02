@@ -4,37 +4,30 @@ import Move
 import algorithm.MTDSearch
 import algorithm.TreeNode
 import algorithm.findRandomMove
-import engine.GameProperties
+import algorithm.performBestMove
+import core.ChessEngine
+import core.engine
 import kotlinx.coroutines.*
-import tornadofx.*
-import view.GameView
 
 enum class PlayerOrder {
     P1, P2
 }
 
-class Player(val view: GameView) {
+class Player() {
     private val searcher = MTDSearch()
-    fun move(node: TreeNode, depth: Int = 6) {
-        println("AI: ${GameProperties.aiTurn}")
-        GlobalScope.launch {
-            view.glass.show()
-            delay(100)
-            view.timer.startTimer()
-            var move: Move? = null
-            withContext(Dispatchers.Default) {
-                // computation move here
-                val (_, _move, score) = searcher.search(node, depth)
-                if(_move == null) {
-                    move = findRandomMove(node.getAllMoves())
-                } else move = _move
-            }
-            withContext(Dispatchers.Main) {
-                // when computation finished, update UI with `click`
-                view.game.moveWithUI(move!!, true)
-            }
-            view.glass.hide()
-            view.timer.stopTimer()
+
+    suspend fun searchBestMove(): Int {
+        delay(150)
+        engine.timer.startTimer()
+        withContext(COMPUTING.coroutineContext) {
+            // computation move here
+            performBestMove(engine.turn)
         }
+        UI.launch {
+            // when computation finished, update UI with `click`
+            chessBoard.update()
+        }
+        engine.timer.stopTimer()
+        return 0
     }
 }
