@@ -147,6 +147,8 @@ class PLoc(val square: Int, val flag: Int): Object<Int>() {
     init { mapping() }
 }
 
+val wbDepth = WBMark(w = 3, b = 4)
+
 val ROOKS = WBMark(
     w = arrayOf(
         PLoc(square = SQUARES.a1, flag = BITS.QSIDE_CASTLE),
@@ -157,8 +159,6 @@ val ROOKS = WBMark(
         PLoc(square = SQUARES.h8, flag = BITS.KSIDE_CASTLE)
     )
 )
-
-
 
 val PAWN_OFFSETS = WBMark(
     b = intArrayOf(16, 32, 17, 15),

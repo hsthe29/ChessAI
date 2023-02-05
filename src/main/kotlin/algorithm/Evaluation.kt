@@ -2,9 +2,6 @@ package algorithm
 
 import Move
 import core.*
-import kotlinx.coroutines.launch
-import objects.chessBoard
-import java.util.*
 
 fun Array<IntArray>.copy() = Array(size) { get(it).clone() }
 
@@ -95,7 +92,6 @@ val pst_b = hashMapOf(
 
 var pstOpponent = hashMapOf('w' to pst_b, 'b' to pst_w)
 var pstYou = hashMapOf('w' to pst_w, 'b' to pst_b)
-var positionCount = 0
 var globalSum = 0
 
 /*
@@ -103,23 +99,23 @@ var globalSum = 0
  * using the material weights and piece square tables.
  */
 fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): Int {
-    var prevSum = prevSum
+    var sum = prevSum
 
-    if (engine.inCheckmate()) {
-
+    val inCheckmate = engine.inCheck && engine.lenMoves == 0
+    val inStalemate = !engine.inCheck && engine.lenMoves == 0
+    val inDraw = engine.halfMoves >= 100 || inStalemate || engine.insufficientMaterial() || engine.inThreefoldRepetition()
+    if (inCheckmate) {
         // Opponent is in checkmate (good for us)
-        return if (move.color == color) 10000000
+        return if (move.color == color) 100000
         // Our king's in checkmate (bad for us)
-        else -10000000
+        else -100000
     }
-
-    if (engine.inDraw() || engine.inThreefoldRepetition() || engine.inStalemate()) {
-        return 0;
-    }
-
-    if (engine.inCheck()) {
+    if (inDraw) {
+        println("in draw")
+        return 0 }
+    if (engine.inCheck) {
         // Opponent is in check (good for us)
-        prevSum += if (move.color == color) 50
+        sum += if (move.color == color) 50
         // Our king's in check (bad for us)
         else -50
     }
@@ -134,7 +130,7 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
     )
 
     // Change endgame behavior for kings
-    if (prevSum < -1500) {
+    if (sum < -1500) {
         if (move.piece == 'k') {
             move.piece = 'e';
         }
@@ -147,13 +143,13 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
     if (move.captured != null) {
         // Opponent piece was captured (good for us)
         if (move.color == color) {
-            prevSum +=
+            sum +=
                 weights[move.captured]!! +
                         pstOpponent[move.color]!![move.captured]!![to[0]][to[1]];
         }
         // Our piece was captured (bad for us)
         else {
-            prevSum -=
+            sum -=
                 weights[move.captured]!! +
                         pstYou[move.color]!![move.captured]!![to[0]][to[1]];
         }
@@ -165,38 +161,44 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
 
         // Our piece was promoted (good for us)
         if (move.color == color) {
-            prevSum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            prevSum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]];
+            sum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]];
+            sum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]];
         }
         // Opponent piece was promoted (bad for us)
         else {
-            prevSum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            prevSum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]];
+            sum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]];
+            sum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]];
         }
     } else {
         // The moved piece still exists on the updated board, so we only need to update the position value
         if (move.color != color) {
-            prevSum += pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            prevSum -= pstYou[move.color]!![move.piece]!![to[0]][to[1]];
+            sum += pstYou[move.color]!![move.piece]!![from[0]][from[1]];
+            sum -= pstYou[move.color]!![move.piece]!![to[0]][to[1]];
         } else {
-            prevSum -= pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            prevSum += pstYou[move.color]!![move.piece]!![to[0]][to[1]];
+            sum -= pstYou[move.color]!![move.piece]!![from[0]][from[1]];
+            sum += pstYou[move.color]!![move.piece]!![to[0]][to[1]];
         }
     }
-    return prevSum;
+    return sum;
 }
 
 fun checkStatus(color: String): Boolean {
     if (engine.inCheckmate()) {
         println("Checkmate! Oops, $color lost.")
+        EndMessage.type = EndType.NORMAL
+        EndMessage.color = if(color == "WHITE") "BLACK" else "WHITE"
     } else if (engine.insufficientMaterial()) {
-        println("It's a draw! (Insufficient Material)");
+        println("It's a draw! (Insufficient Material)")
+        EndMessage.type = EndType.DRAW
     } else if (engine.inThreefoldRepetition()) {
-        println("It's a draw! (Threefold Repetition)");
+        println("It's a draw! (Threefold Repetition)")
+        EndMessage.type = EndType.DRAW
     } else if (engine.inStalemate()) {
-        println("It's a draw! (Stalemate)");
+        println("It's a draw! (Stalemate)")
+        EndMessage.type = EndType.DRAW
     } else if (engine.inDraw()) {
-        println("It's a draw! (50-move Rule)");
+        println("It's a draw! (50-move Rule)")
+        EndMessage.type = EndType.DRAW
     } else if (engine.inCheck()) {
         println("Oops, $color is in check!")
         return false
@@ -204,43 +206,6 @@ fun checkStatus(color: String): Boolean {
         println("No check, checkmate, or draw.");
         return false;
     }
+    engine.endGame.set(true)
     return true;
 }
-
-
-// * Plays Computer vs. Computer, starting with a given color.
-/*func comVsCom(color) {
-    if (!checkStatus({ w: 'white', b: 'black' }[color])) {
-        timer = window.setTimeout(function () {
-            makeBestMove(color);
-            if (color === 'w') {
-                color = 'b';
-            } else {
-                color = 'w';
-            }
-            compVsComp(color);
-        }, 250);
-    }
-}*/
-
-// * Resets the game to its initial state.
-
-// * Event listeners for various buttons.
-
-var undo_stack = mutableListOf<Move>()
-
-/*fun undo() {
-    var move = game.undo();
-    undo_stack.push(move);
-
-    // Maintain a maximum stack size
-    if (undo_stack.length > STACK_SIZE) {
-        undo_stack.shift();
-    }
-    board.position(game.fen());
-}*/
-
-/*function redo() {
-    game.move(undo_stack.pop());
-    board.position(game.fen());
-}*/

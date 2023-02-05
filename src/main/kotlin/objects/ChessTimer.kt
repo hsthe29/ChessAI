@@ -27,10 +27,11 @@ class ChessTimer(private val engine: ChessEngine) {
         }
     }
 
-    internal fun stopTimer() {
+    internal fun stopTimer(): Long {
         now = System.currentTimeMillis()
         engine.updateFinalTime(now - last)
         this.timer!!.cancel()
+        return now - last
     }
 
 

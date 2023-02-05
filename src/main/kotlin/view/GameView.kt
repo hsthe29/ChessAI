@@ -1,50 +1,25 @@
 package view
 
 import Styles
-import algorithm.checkStatus
-import core.AI
-import core.BLACK
-import core.GameMode
+import core.MoveData
+import core.dataHistory
 import core.engine
 import javafx.application.Platform
 import javafx.geometry.Pos
+import javafx.scene.control.cell.PropertyValueFactory
 import javafx.scene.layout.StackPane
 import javafx.scene.layout.VBox
 import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.scene.text.Text
 import javafx.stage.Modality
-import objects.*
+import kotlinx.coroutines.launch
+import objects.chessBoard
 import tornadofx.*
 
-fun notification(parent: StackPane, view: GameView): VBox {
-     return VBox().apply {
-         spacing = 10.0
-         setMaxSize(250.0, 100.0)
-         alignment = Pos.CENTER
-         this.hide()
-         this.addClass(Styles.notify_table)
-         label("Them nhan")
-         hbox(spacing = 30) {
-             paddingLeft = 40
-             button("New Game") {
-                 onLeftClick {
-                     find<Config>().openWindow(owner = null, resizable = false)
-                     view.close()
-                 }
-             }
-             button("Cancel") {
-                 onLeftClick {
-                     this@apply.hide()
-                 }
-             }
-         }
-     }.also { parent.add(it) }
-}
-
 class GameView : View("ChessAI") {
-    private lateinit var winStatus: VBox
     private lateinit var timeLabel: Text
+    private lateinit var turnLabel: Text
 
     override val root = stackpane {
         setPrefSize(1200.0, 820.0)
@@ -55,36 +30,51 @@ class GameView : View("ChessAI") {
                     endX = 0.0; endY = 660.0
                     addClass(Styles.line)
                 }
-                vbox {
+                vbox(spacing = 20) {
                     hbox(spacing = 30) {
                         paddingLeft = 120
                         paddingTop = 10
-                        button("Start") {
-                            onLeftClick {
-                                if(text == "Start") {
-                                    text = "Restart"
-                                    startGame()
-                                }
-                            }
-                        }
                         button("New Game") {
                             onLeftClick {
-                                find<Config>("core" to engine).openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
+                                startGame()
                             }
                         }
                         button("Quit") {
                             onLeftClick { this@GameView.close() }
                         }
                     }
+                    turnLabel = text(engine.thinking).apply {
+                        paddingLeft = 20
+//                        this.translateY = 20.0
+                        font = Font.font("Helvetica", FontWeight.BOLD, 25.0)
+                    }
                     timeLabel = text(engine.time).apply {
                         paddingLeft = 20
-                        this.translateY = 20.0
-                        font = Font.font("Helvetica", FontWeight.BOLD, 30.0);
+//                        this.translateY = 30.0
+                        font = Font.font("Helvetica", FontWeight.BOLD, 30.0)
                     }
-                    button("undo") {
-                        onLeftClick {
-                            //game.undoWithUI()
+
+                    tableview<MoveData> {
+                        column("Piece", Char::class) {
+                            setCellValueFactory(PropertyValueFactory("piece"))
                         }
+                        column("Move", String::class) {
+                            minWidth = 65.0
+                            setCellValueFactory(PropertyValueFactory("move"))
+                        }
+                        column("Captured", Char::class) {
+                            setCellValueFactory(PropertyValueFactory("captured"))
+                        }
+                        column("Color", Char::class) {
+                            setCellValueFactory(PropertyValueFactory("color"))
+                        }
+                        column("Time (s)", Double::class) {
+                            setCellValueFactory(PropertyValueFactory("eval"))
+                        }
+                        column("Visited nodes", Int::class) {
+                            setCellValueFactory(PropertyValueFactory("nodeVisited"))
+                        }
+                        items = dataHistory
                     }
                 }
             }
@@ -94,7 +84,7 @@ class GameView : View("ChessAI") {
                 addClass(Styles.line)
             }
             hbox {
-                label("You: ") {
+                label("WHITE: ") {
                     paddingLeft = 130
                     translateY = 50.0
                 }
@@ -108,7 +98,7 @@ class GameView : View("ChessAI") {
                     endX = 0.0; endY = 150.0
                     addClass(Styles.line)
                 }
-                label("Opponent: ") {
+                label("BLACK: ") {
                     minWidth = 50.0
                     paddingLeft = 60
                     translateY = 50.0
@@ -120,22 +110,27 @@ class GameView : View("ChessAI") {
                 })
             }
         }
-        winStatus = notification(this, this@GameView)
     }
 
     init {
-        currentWindow?.setOnCloseRequest {Platform.exit()}
+        currentWindow?.setOnCloseRequest { Platform.exit() }
+        engine.endGame.onChange {
+            UI.launch {
+                onEndGame()
+            }
+        }
     }
     private fun startGame() {
         find<Config>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
-        chessBoard.update()
-        engine.search()
+        if(engine.turn != '-') {
+            chessBoard.update()
+            engine.search()
+        }
     }
 
-//    fun showNotification(s: String) {
-//        property.message.value = s
-//        this.winStatus.show()
-//    }
+    fun onEndGame() {
+        find<EngameView>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
+    }
 }
 
 

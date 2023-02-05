@@ -2,9 +2,11 @@ package objects
 
 import COMPUTING
 import Move
+import algorithm.checkStatus
 import algorithm.findRandomMove
 import algorithm.performBestMove
 import core.*
+import javafx.beans.property.SimpleStringProperty
 import javafx.event.EventTarget
 import javafx.geometry.Insets
 import javafx.scene.Node
@@ -54,12 +56,6 @@ class Cell(private val row: Int, private val col: Int): StackPane() {
         effects.clear()
     }
 
-    fun releasePiece(): Piece? {
-        val temp = this.piece
-        this.piece = null
-        return temp
-    }
-
     fun moveTop() {
         if(piece != null) {
             piece!!.image.toFront()
@@ -74,7 +70,6 @@ class ChessBoard : GridPane() {
     private var active: Pair<Int, Int>? = null
     private val cells = Array(8) { i -> Array(8) { j -> Cell(i, j) } }
     val carts = Cart()
-
     init {
         this.padding = Insets(10.0, 10.0, 10.0, 10.0)
         for(i in 0 until 8) {
@@ -88,7 +83,7 @@ class ChessBoard : GridPane() {
     }
 
     private fun cellClick(row: Int, col: Int) {
-        if(engine.turn != engine.player) return
+        if(engine.turn != engine.player && engine.endGame.value) return
         val loc = LOCATION[row][col]
         if(active == null) {
             if(cells[row][col].occupied) {
@@ -100,7 +95,7 @@ class ChessBoard : GridPane() {
             val m = validMove(loc)
             if(m != null) {
                 active = null
-                uiMove(m) // rendered
+                uiMove(m)
                 aiSearch()
             } else {
                 if(ally(engine.board[SQUARES[loc]], engine.board[SQUARES[LOCATION[active!!.first][active!!.second]]])) {
@@ -126,8 +121,8 @@ class ChessBoard : GridPane() {
         return temp
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     private fun aiSearch() {
+        engine.thinking.set("Thinking: ${if(engine.turn == BLACK) "BLACK" else "WHITE"}")
         engine.search()
     }
 
@@ -143,6 +138,8 @@ class ChessBoard : GridPane() {
             Pair(8 - sqLoc(move.from)[1].digitToInt(), sqLoc(move.from).codePointAt(0) - 'a'.code),
             Pair(8 - sqLoc(move.to)[1].digitToInt(), sqLoc(move.to).codePointAt(0) - 'a'.code))
         update()
+        val color = if (engine.turn == BLACK) "BLACK" else "WHITE"
+        checkStatus(color)
     }
 
     fun update() {
@@ -151,10 +148,12 @@ class ChessBoard : GridPane() {
             for(j in 0 until 8) {
                 val loc = LOCATION[i][j]
                 cells[i][j].resetState()
-                if(board[SQUARES[loc]] == null)
-                    continue
-                val piece = board[SQUARES[loc]]!!
-                cells[i][j].display(piece)
+                try {
+                    val piece = board[SQUARES[loc]] ?: continue
+                    cells[i][j].display(piece)
+                } catch (e: Exception) {
+                    println("Loc: $loc, ${board[SQUARES[loc]]}")
+                }
             }
         }
 

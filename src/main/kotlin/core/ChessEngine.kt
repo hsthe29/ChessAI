@@ -1,26 +1,29 @@
 package core
 
-import COMPUTING
 import Move
 import MoveInfo
+import UI
 import algorithm.checkStatus
 import javafx.application.Platform
+import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleStringProperty
+import javafx.collections.FXCollections
+import javafx.collections.ObservableList
 import kotlinx.coroutines.*
 import objects.ChessBoard
 import objects.ChessTimer
 import objects.Player
 import objects.chessBoard
-import tornadofx.onLeftClick
+import java.util.*
 
 val engine = ChessEngine()
 var AI = Player()
-
+val dataHistory: ObservableList<MoveData> = FXCollections.observableArrayList()
 class ChessEngine {
     val board = Array<PieceInfo?>(128) { null }
     var mode = GameMode.PvsCOM
     private var kings = WBMark(w =  EMPTY, b = EMPTY)
-    var turn = WHITE
+    var turn = '-'
     var player = WHITE
     private var castling = WBMark(w = 0, b = 0)
     var trace: Pair<Pair<Int, Int>, Pair<Int, Int>>? = null
@@ -30,41 +33,22 @@ class ChessEngine {
     var history = mutableListOf<MoveInfo>()
     private var secs = 0
     val time = SimpleStringProperty("Computation time: 0.000 seconds")
+    val thinking = SimpleStringProperty("Thinking: ")
     val timer = ChessTimer(this)
     private val positions = hashMapOf<String, Int>()
+    private val threeRep = hashSetOf<String>()
+    var inCheck = false
+    var lenMoves = 0
+    var endGame = SimpleBooleanProperty(false)
     init {
         loadFEN(DEFAULT_POSITION)
     }
 
-    fun clear() {
-        for(i in 0 until 128)
-            board[i] = null
-
-        kings = WBMark(w = EMPTY, b = EMPTY)
-
-        turn = WHITE
-        castling = WBMark(w = 0, b = 0)
-
-        epSquare = EMPTY
-        halfMoves = 0
-        moveNumber = 1
-        history = mutableListOf<MoveInfo>()
-        updateSetup()
-    }
-
-    fun reset() {
-        loadFEN(DEFAULT_POSITION)
-    }
-
-    fun loadFEN(fen:String) {
+    private fun loadFEN(fen:String) {
         val tokens = fen.split("\\s+".toRegex())
         val position = tokens[0]
         var square = 0
-
-        clear()
-
         for (element in position) {
-
             if (element == '/') {
                 square += 8
             } else if (isDigit(element)) {
@@ -75,8 +59,6 @@ class ChessEngine {
                 square++
             }
         }
-
-        turn = tokens[1][0]
 
         if ('K' in tokens[2]) {
             castling.w = castling.w or BITS.KSIDE_CASTLE
@@ -94,11 +76,9 @@ class ChessEngine {
         epSquare = if(tokens[3][0] == '-') EMPTY else SQUARES[tokens[3]]
         halfMoves = tokens[4].toInt()
         moveNumber = tokens[5].toInt()
-
-        updateSetup()
     }
 
-    fun put(piece: PieceInfo, square: String): Boolean {
+    private fun put(piece: PieceInfo, square: String): Boolean {
         /* check for valid square */
         if (square !in SQUARES) { return false }
 
@@ -113,14 +93,7 @@ class ChessEngine {
         if (piece.type == KING) {
             kings[piece.color] = sq
         }
-
-        updateSetup()
-
         return true
-    }
-
-    fun updateSetup() {
-        history.clear()
     }
 
     fun buildMove(board: Array<PieceInfo?>, from: Int, to: Int, flags: Int, promotion: Char? = null): Move {
@@ -281,13 +254,20 @@ class ChessEngine {
         /* filter out illegal moves */
         val legalMoves = mutableListOf<Move>()
         for (move in moves) {
-            makeMove(move)
+            makeMove(move, true)
             if (!kingAttacked(us)) {
                 legalMoves.add(move)
             }
-            undoMove()
+            undoMove(true)
         }
         return legalMoves
+    }
+
+    fun allMoves(): MutableList<Move> {
+        val mvs = generateMoves()
+        inCheck = inCheck()
+        lenMoves = mvs.size
+        return mvs
     }
 
     fun attacked(color: Char, square: Int): Boolean {
@@ -305,32 +285,32 @@ class ChessEngine {
             val difference = i - square
             val index = difference + 119
 
-            if (ATTACKS[index] and (1 shl SHIFTS[piece!!.type]) != 0) {
-                if (piece.type == PAWN) {
-                    if (difference > 0) {
-                        if (piece.color == WHITE) return true
-                    } else {
-                        if (piece.color == BLACK) return true
+                if (ATTACKS[index] and (1 shl SHIFTS[piece!!.type]) != 0) {
+                    if (piece.type == PAWN) {
+                        if (difference > 0) {
+                            if (piece.color == WHITE) return true
+                        } else {
+                            if (piece.color == BLACK) return true
+                        }
+                        continue
                     }
-                    continue
-                }
 
-                /* if the piece is a knight or a king */
-                if (piece.type == KNIGHT || piece.type == KING) return true
+                    /* if the piece is a knight or a king */
+                    if (piece.type == KNIGHT || piece.type == KING) return true
 
-                val offset = RAYS[index]
-                var j = i + offset
+                    val offset = RAYS[index]
+                    var j = i + offset
 
-                var blocked = false
-                while (j != square) {
-                    if (board[j] != null) {
-                        blocked = true
-                        break
+                    var blocked = false
+                    while (j != square) {
+                        if (board[j] != null) {
+                            blocked = true
+                            break
+                        }
+                        j += offset
                     }
-                    j += offset
+                    if (!blocked) return true
                 }
-                if (!blocked) return true
-            }
         }
 
         return false
@@ -350,7 +330,7 @@ class ChessEngine {
         )
     }
 
-    fun makeMove(move: Move) {
+    fun makeMove(move: Move, shallow: Boolean = false) {
         val us = turn
         val them = swapColor(us)
         storeHistory(move)
@@ -422,22 +402,26 @@ class ChessEngine {
             moveNumber++
         }
         turn = swapColor(turn)
-
+        if(shallow) return
         val fen = generateFEN()
             .split(' ')
             .slice(0 until 4)
             .joinToString(" ")
         positions[fen] = if(fen in positions) positions[fen]!! + 1 else 1
+        if(positions[fen] == 3) threeRep.add(fen)
     }
 
-    fun undoMove(): Move? {
+    fun undoMove(shallow: Boolean = false): Move? {
         val old = history.removeLastOrNull() ?: return null
 
-        val fen = generateFEN()
-            .split(' ')
-            .slice(0 until 4)
-            .joinToString(" ")
-        positions[fen] = positions[fen]!! - 1
+        if(!shallow) {
+            val fen = generateFEN()
+                .split(' ')
+                .slice(0 until 4)
+                .joinToString(" ")
+            positions[fen] = positions[fen]!! - 1
+            if (positions[fen] == 2) threeRep.remove(fen)
+        }
 
         val move = old.move
         kings = old.kings
@@ -449,8 +433,6 @@ class ChessEngine {
 
         val us = turn
         val them = swapColor(turn)
-//        println("move: $move")
-//        println(ascii())
 
         board[move.from] = board[move.to]
         board[move.from]!!.type = move.piece // to undo any promotions
@@ -590,47 +572,9 @@ class ChessEngine {
     }
 
     fun inThreefoldRepetition(): Boolean {
-        for((_, v) in positions)
-            if(v >= 3) return true
-        return false
+        return threeRep.isNotEmpty()
     }
 
-    /*fun inThreefoldRepetition(): Boolean {
-        *//* TODO: while this function is fine for casual use, a better
-         * implementation would use a Zobrist key (instead of FEN). the
-         * Zobrist key would be maintained in the make_move/undo_move functions,
-         * avoiding the costly that we do below.
-         *//*
-        val moves = mutableListOf<Move>()
-        var repetition = false
-
-        while (true) {
-            val move = undoMove() ?: break
-            moves.add(move)
-        }
-
-        while (true) {
-            *//* remove the last two fields in the FEN string, they're not needed
-             * when checking for draw by rep *//*
-            val fen = generateFEN()
-                .split(' ')
-                .slice(0 until 4)
-                .joinToString(" ")
-
-            *//* has the position occurred three or move times *//*
-            positions[fen] = fen in positions ? positions[fen] + 1 : 1
-            if (positions[fen] >= 3) {
-                repetition = true
-            }
-
-            if (!moves.length) {
-                break
-            }
-            make_move(moves.pop())
-        }
-
-        return repetition
-    }*/
     fun inDraw() = halfMoves >= 100 ||
                         inStalemate() ||
                         insufficientMaterial() ||
@@ -688,8 +632,11 @@ class ChessEngine {
     fun search() {
         GlobalScope.launch {
             if (mode == GameMode.PvsCOM) {
-                if (turn == BLACK)
+                if (turn == BLACK) {
                     AI.searchBestMove()
+                    val color = if (turn == BLACK) "BLACK" else "WHITE"
+                    checkStatus(color)
+                }
             } else {
                 while(true) {
                     val color = if (turn == BLACK) "BLACK" else "WHITE"
@@ -699,4 +646,8 @@ class ChessEngine {
             }
         }
     }
+}
+
+fun pushMove(move: Move, time: Double, nodeVisited: Int) {
+    dataHistory.add(0, MoveData(move.piece, "${sqLoc(move.from)} -> ${sqLoc(move.to)}", captured = move.captured?: '-', color = move.color, eval = time, nodeVisited = nodeVisited))
 }

@@ -96,5 +96,3 @@ class Cart(val inverse: Boolean = false ) {
         }
     }
 }
-
-inline fun cart(inverse: Boolean = false, op: Cart.() -> Unit = {}) = Cart(inverse).apply(op)

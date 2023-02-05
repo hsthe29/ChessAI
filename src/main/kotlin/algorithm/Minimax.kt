@@ -1,10 +1,7 @@
 package algorithm
 
 import Move
-import core.BLACK
-import core.ChessEngine
-import core.engine
-import core.sqLoc
+import core.*
 import kotlinx.coroutines.launch
 import objects.chessBoard
 import kotlin.math.max
@@ -16,6 +13,7 @@ import kotlin.reflect.jvm.internal.impl.utils.CollectionsKt
 
 /** variables segment */
 var bestMove: Move? = null
+var blk = true
 
 fun findRandomMove(feasibleMoves: List<Move>) = feasibleMoves[Random.nextInt(feasibleMoves.size)]
 
@@ -36,64 +34,12 @@ fun findRandomMove(feasibleMoves: List<Move>) = feasibleMoves[Random.nextInt(fea
  * Output:
  *  the best move at the root of the current subtree.
  */
-fun minimax(engine: ChessEngine, depth: Int, alpha: Int, beta: Int, isMaximizingPlayer: Boolean, sum: Int, color: Char): Pair<Move?, Int> {
-    var alpha = alpha
-    var beta = beta
-    positionCount++
-    val children = engine.generateMoves()
-    children.shuffle()
 
-    var currMove: Move;
-    // Maximum depth exceeded or node is a terminal node (no children)
-    if (depth == 0 || children.isEmpty()) {
-        return Pair(null, sum)
-    }
-
-    // Find maximum/minimum from list of 'children' (possible moves)
-    var maxValue = Int.MIN_VALUE
-    var minValue = Int.MAX_VALUE
-    var bestMove: Move? = null
-    for (child in children) {
-        currMove = child
-
-        // Note: in our case, the 'children' are simply modified game states
-        engine.makeMove(currMove);
-        val newSum = evaluateBoard(engine, currMove, sum, color);
-        val (childBestMove, childValue) = minimax(engine, depth - 1, alpha, beta, !isMaximizingPlayer, newSum, color)
-
-        engine.undoMove();
-
-        if (isMaximizingPlayer) {
-            if (childValue > maxValue) {
-                maxValue = childValue;
-                bestMove = currMove;
-            }
-            if (childValue > alpha) {
-                alpha = childValue;
-            }
-        } else {
-            if (childValue < minValue) {
-                minValue = childValue;
-                bestMove = currMove;
-            }
-            if (childValue < beta) {
-                beta = childValue;
-            }
-        }
-        // Alpha-beta pruning
-        if (alpha >= beta) {
-            break;
-        }
-    }
-
-    return if (isMaximizingPlayer) Pair(bestMove, maxValue) else Pair(bestMove, minValue)
-}
-
-fun findBestMove(engine: ChessEngine, color: Char, currSum: Int): Pair<Move?, Int> {
+/*fun findBestMove(engine: ChessEngine, color: Char, currSum: Int): Pair<Move?, Int> {
     positionCount = 0
 
-    val depth = if (color == 'b') 2 else 2
-    val (bestMove, bestMoveValue) = minimax(engine, depth, Int.MIN_VALUE, Int.MAX_VALUE, true, currSum, color)
+    val depth = wbDepth[color]
+    val (bestMove, bestMoveValue) = minimax3(engine, depth, Int.MIN_VALUE, Int.MAX_VALUE, true, currSum, color)
 
     println(positionCount)
 
@@ -101,13 +47,12 @@ fun findBestMove(engine: ChessEngine, color: Char, currSum: Int): Pair<Move?, In
 }
 
 // * Makes the best legal move for the given color.
-fun performBestMove(color: Char) {
+fun performBestMove(color: Char): Move {
     val (move, value) = if (color == BLACK) {
         findBestMove(engine, color, globalSum)
     } else {
         findBestMove(engine, color, -globalSum)
     }
-
     globalSum = evaluateBoard(engine, move!!, globalSum, 'b')
 
     if(engine.board[move.to] != null) {
@@ -120,14 +65,32 @@ fun performBestMove(color: Char) {
         Pair(8 - sqLoc(move.from)[1].digitToInt(), sqLoc(move.from).codePointAt(0) - 'a'.code),
         Pair(8 - sqLoc(move.to)[1].digitToInt(), sqLoc(move.to).codePointAt(0) - 'a'.code))
     engine.makeMove(move)
+    engine.thinking.set("Thinking: ${if(engine.turn == BLACK) "BLACK" else "WHITE"}")
+    return move
+}*/
 
-    if (color == BLACK) {
+fun performBestMove(move: Move): Move {
+    globalSum = evaluateBoard(engine, move.copy(), globalSum, 'b')
+    println("Score: $globalSum")
+    if(engine.board[move.to] != null) {
+        val rev = engine.board[move.to]!!.copy()
+        UI.launch {
+            chessBoard.carts.updateCart(rev)
+        }
+    }
+    engine.trace = Pair(
+        Pair(8 - sqLoc(move.from)[1].digitToInt(), sqLoc(move.from).codePointAt(0) - 'a'.code),
+        Pair(8 - sqLoc(move.to)[1].digitToInt(), sqLoc(move.to).codePointAt(0) - 'a'.code))
+    engine.makeMove(move)
+    engine.thinking.set("Thinking: ${if(engine.turn == BLACK) "BLACK" else "WHITE"}")
+
+    if (engine.turn == BLACK) {
         checkStatus("BLACK")
     } else {
         checkStatus("WHITE");
     }
+    return move
 }
-
 
 /** Simplify the minimax algorithm */
 //fun negamax(game: Engine, depth: Int, alpha: Int, beta: Int, isAITurn: Boolean): Int {

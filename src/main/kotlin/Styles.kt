@@ -6,6 +6,7 @@ class Styles: Stylesheet() {
     companion object {
         val board_cell_light by cssclass()
         val board_cell_dark by cssclass()
+        val frame by cssclass()
         val cart by cssclass()
         val cart_cell by cssclass()
         val line by cssclass()
@@ -28,6 +29,14 @@ class Styles: Stylesheet() {
             backgroundColor += c("#ff6a00")
         }
 
+        frame {
+//            prefWidth = 150.px
+//            prefHeight = 300.px
+            borderColor += box(Color.BLUE)
+            borderWidth += box(2.px)
+            borderRadius += box(7.px)
+        }
+
         cart {
             borderColor += box(Color.BLUE)
             borderWidth += box(2.px)
@@ -43,7 +52,7 @@ class Styles: Stylesheet() {
         }
 
         line {
-            strokeWidth = 4.px
+            strokeWidth = 2.px
         }
 
         chess_cell_active {

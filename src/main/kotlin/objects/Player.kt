@@ -2,32 +2,28 @@ package objects
 
 import Move
 import algorithm.MTDSearch
-import algorithm.TreeNode
-import algorithm.findRandomMove
 import algorithm.performBestMove
-import core.ChessEngine
 import core.engine
+import core.pushMove
+import core.wbDepth
 import kotlinx.coroutines.*
-
-enum class PlayerOrder {
-    P1, P2
-}
 
 class Player() {
     private val searcher = MTDSearch()
 
-    suspend fun searchBestMove(): Int {
+    suspend fun searchBestMove() {
         delay(150)
         engine.timer.startTimer()
+        var move: Move? = null
         withContext(COMPUTING.coroutineContext) {
             // computation move here
-            performBestMove(engine.turn)
+            move = performBestMove(searcher.search(wbDepth[engine.turn])!!)
         }
+        val time = engine.timer.stopTimer()
         UI.launch {
             // when computation finished, update UI with `click`
             chessBoard.update()
+            pushMove(move!!, time/1000.0, searcher.nodesVisited)
         }
-        engine.timer.stopTimer()
-        return 0
     }
 }

@@ -1,11 +1,25 @@
 package core
 
 import javafx.scene.image.Image
+import javafx.scene.image.ImageView
 
 enum class GameMode {
     PvsCOM, COMvsCOM
 }
 
+enum class EndType {
+    NORMAL, DRAW
+}
+
+object EndMessage {
+    var type = EndType.NORMAL
+    var color = "WHITE"
+}
+data class MoveData(val piece: Char, val move: String, val captured: Char, val color: Char, val eval: Double, val nodeVisited: Int)
+
+class Piece(val color: Char, val type: Char) {
+    val image = ImageView("pieces/${color}_${type}.png")
+}
 data class PieceInfo(var color: Char, var type: Char): MutableObject<Char>(){
     init { mapping() }
 }
@@ -18,12 +32,6 @@ val movableImg = Image("backgrounds/movable.png")
 val attackedImg = Image("backgrounds/under_attacked.png")
 val traceImg = Image("backgrounds/trace.png")
 
-val rookDirections = listOf(1 to 0, 0 to 1, -1 to 0, 0 to -1)
-val bishopDirections = listOf(1 to 1, -1 to 1, 1 to -1, -1 to -1)
-val knightDirections = listOf(1 to 2, 1 to -2, -1 to 2, -1 to -2, 2 to 1, 2 to -1, -2 to 1, -2 to -1)
-val kingDirections = listOf(1 to 0, 0 to 1, 0 to -1, -1 to 0, -1 to -1, -1 to 1, 1 to 1, 1 to -1)
-
-fun onBoard(x: Int, y: Int) = (x in 0 until 8) && (y in 0 until 8)
 fun isEnemy(from: Char, to: Char) = (from.isUpperCase() && to.isLowerCase()) || (from.isLowerCase() && to.isUpperCase())
 
 fun isAlly(a: Char, b: Char) = (a.isLowerCase() && b.isLowerCase()) || (a.isUpperCase() && b.isUpperCase())
