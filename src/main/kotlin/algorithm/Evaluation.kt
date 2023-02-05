@@ -5,7 +5,7 @@ import core.*
 
 fun Array<IntArray>.copy() = Array(size) { get(it).clone() }
 
-val weights = hashMapOf('p' to 100, 'n' to 280, 'b' to 320, 'r' to 479, 'q' to 929, 'k' to 60000, 'e' to 60000)
+val weights = hashMapOf('p' to 90, 'n' to 280, 'b' to 350, 'r' to 419, 'q' to 929, 'k' to 60000, 'e' to 60000)
 val pst_w = hashMapOf(
     'p' to arrayOf(
         intArrayOf(100, 100, 100, 100, 105, 100, 100, 100),
@@ -92,7 +92,7 @@ val pst_b = hashMapOf(
 
 var pstOpponent = hashMapOf('w' to pst_b, 'b' to pst_w)
 var pstYou = hashMapOf('w' to pst_w, 'b' to pst_b)
-var globalSum = 0
+var boardScore = 0
 
 /*
  * Evaluates the board at this point in time,
@@ -101,18 +101,6 @@ var globalSum = 0
 fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): Int {
     var sum = prevSum
 
-    val inCheckmate = engine.inCheck && engine.lenMoves == 0
-    val inStalemate = !engine.inCheck && engine.lenMoves == 0
-    val inDraw = engine.halfMoves >= 100 || inStalemate || engine.insufficientMaterial() || engine.inThreefoldRepetition()
-    if (inCheckmate) {
-        // Opponent is in checkmate (good for us)
-        return if (move.color == color) 100000
-        // Our king's in checkmate (bad for us)
-        else -100000
-    }
-    if (inDraw) {
-        println("in draw")
-        return 0 }
     if (engine.inCheck) {
         // Opponent is in check (good for us)
         sum += if (move.color == color) 50
@@ -132,11 +120,11 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
     // Change endgame behavior for kings
     if (sum < -1500) {
         if (move.piece == 'k') {
-            move.piece = 'e';
+            move.piece = 'e'
         }
         // Kings can never be captured
          else if (move.captured == 'k') {
-           move.captured = 'e';
+           move.captured = 'e'
          }
     }
 
@@ -145,41 +133,120 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
         if (move.color == color) {
             sum +=
                 weights[move.captured]!! +
-                        pstOpponent[move.color]!![move.captured]!![to[0]][to[1]];
+                        pstOpponent[move.color]!![move.captured]!![to[0]][to[1]]
         }
         // Our piece was captured (bad for us)
         else {
             sum -=
                 weights[move.captured]!! +
-                        pstYou[move.color]!![move.captured]!![to[0]][to[1]];
+                        pstYou[move.color]!![move.captured]!![to[0]][to[1]]
         }
     }
 
     if ((BITS.PROMOTION and move.flags) != 0) {
         // NOTE: promote to queen for simplicity
-        move.promotion = 'q';
+        move.promotion = 'q'
 
         // Our piece was promoted (good for us)
         if (move.color == color) {
-            sum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            sum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]];
+            sum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
         // Opponent piece was promoted (bad for us)
         else {
-            sum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            sum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]];
+            sum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
     } else {
         // The moved piece still exists on the updated board, so we only need to update the position value
         if (move.color != color) {
-            sum += pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            sum -= pstYou[move.color]!![move.piece]!![to[0]][to[1]];
+            sum += pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum -= pstYou[move.color]!![move.piece]!![to[0]][to[1]]
         } else {
-            sum -= pstYou[move.color]!![move.piece]!![from[0]][from[1]];
-            sum += pstYou[move.color]!![move.piece]!![to[0]][to[1]];
+            sum -= pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum += pstYou[move.color]!![move.piece]!![to[0]][to[1]]
         }
     }
-    return sum;
+    return sum
+}
+
+fun evalBoardScore(engine: ChessEngine, move: Move, prevSum: Int, color: Char): Int {
+    var sum = prevSum
+    if (engine.inCheckmate()) {
+        // Opponent is in checkmate (good for us)
+        return if (move.color == color) 100000
+        // Our king's in checkmate (bad for us)
+        else -100000
+    }
+    if (engine.inDraw()) {
+        return 0 }
+    if (engine.inCheck()) {
+        // Opponent is in check (good for us)
+        sum += if (move.color == color) 50
+        // Our king's in check (bad for us)
+        else -50
+    }
+
+    val from = intArrayOf(
+        8 - sqLoc(move.from)[1].digitToInt(),
+        sqLoc(move.from).codePointAt(0) - 'a'.code
+    )
+    val to = intArrayOf(
+        8 - sqLoc(move.to)[1].digitToInt(),
+        sqLoc(move.to).codePointAt(0) - 'a'.code
+    )
+
+    // Change endgame behavior for kings
+    if (sum < -1500) {
+        if (move.piece == 'k') {
+            move.piece = 'e'
+        }
+        // Kings can never be captured
+        else if (move.captured == 'k') {
+            move.captured = 'e'
+        }
+    }
+
+    if (move.captured != null) {
+        // Opponent piece was captured (good for us)
+        if (move.color == color) {
+            sum +=
+                weights[move.captured]!! +
+                        pstOpponent[move.color]!![move.captured]!![to[0]][to[1]]
+        }
+        // Our piece was captured (bad for us)
+        else {
+            sum -=
+                weights[move.captured]!! +
+                        pstYou[move.color]!![move.captured]!![to[0]][to[1]]
+        }
+    }
+
+    if ((BITS.PROMOTION and move.flags) != 0) {
+        // NOTE: promote to queen for simplicity
+        move.promotion = 'q'
+
+        // Our piece was promoted (good for us)
+        if (move.color == color) {
+            sum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
+        }
+        // Opponent piece was promoted (bad for us)
+        else {
+            sum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
+        }
+    } else {
+        // The moved piece still exists on the updated board, so we only need to update the position value
+        if (move.color != color) {
+            sum += pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum -= pstYou[move.color]!![move.piece]!![to[0]][to[1]]
+        } else {
+            sum -= pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum += pstYou[move.color]!![move.piece]!![to[0]][to[1]]
+        }
+    }
+    return sum
 }
 
 fun checkStatus(color: String): Boolean {
@@ -190,22 +257,26 @@ fun checkStatus(color: String): Boolean {
     } else if (engine.insufficientMaterial()) {
         println("It's a draw! (Insufficient Material)")
         EndMessage.type = EndType.DRAW
+        EndMessage.kind = "Insufficient Material"
     } else if (engine.inThreefoldRepetition()) {
         println("It's a draw! (Threefold Repetition)")
         EndMessage.type = EndType.DRAW
+        EndMessage.kind = "Threefold Repetition"
     } else if (engine.inStalemate()) {
         println("It's a draw! (Stalemate)")
         EndMessage.type = EndType.DRAW
+        EndMessage.kind = "Stalemate"
     } else if (engine.inDraw()) {
         println("It's a draw! (50-move Rule)")
         EndMessage.type = EndType.DRAW
+        EndMessage.kind = "50-move Rule"
     } else if (engine.inCheck()) {
         println("Oops, $color is in check!")
         return false
     } else {
-        println("No check, checkmate, or draw.");
-        return false;
+        println("No check, checkmate, or draw.")
+        return false
     }
     engine.endGame.set(true)
-    return true;
+    return true
 }

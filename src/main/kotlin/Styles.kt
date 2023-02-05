@@ -1,11 +1,8 @@
-import javafx.geometry.Pos
 import javafx.scene.paint.Color
 import tornadofx.*
 
 class Styles: Stylesheet() {
     companion object {
-        val board_cell_light by cssclass()
-        val board_cell_dark by cssclass()
         val frame by cssclass()
         val cart by cssclass()
         val cart_cell by cssclass()
@@ -17,24 +14,8 @@ class Styles: Stylesheet() {
         val notify_table by cssclass()
     }
     init {
-        board_cell_dark {
-            minWidth = 80.px
-            minHeight = 80.px
-            backgroundColor += c("#454545")
-        }
-
-        board_cell_light {
-            minWidth = 80.px
-            minHeight = 80.px
-            backgroundColor += c("#ff6a00")
-        }
-
         frame {
-//            prefWidth = 150.px
-//            prefHeight = 300.px
-            borderColor += box(Color.BLUE)
-            borderWidth += box(2.px)
-            borderRadius += box(7.px)
+            backgroundColor += c("#9e9da6")
         }
 
         cart {

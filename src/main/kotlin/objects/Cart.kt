@@ -6,7 +6,6 @@ import javafx.scene.control.Label
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.StackPane
 import javafx.scene.text.Font
-import javafx.scene.text.TextAlignment
 import tornadofx.*
 
 class CartCell(url: String?): StackPane() {
@@ -23,7 +22,7 @@ class CartCell(url: String?): StackPane() {
     }
 }
 
-class Cart(val inverse: Boolean = false ) {
+class Cart {
     val yourItems = GridPane()
     val opponentItems = GridPane()
     private val cells = hashMapOf<String, CartCell>()
@@ -89,7 +88,6 @@ class Cart(val inverse: Boolean = false ) {
 
     fun updateCart(info: PieceInfo) {
         val key = "${swapColor(info.color)}${info.type}"
-        println("key: $key")
         cells[key]!!.opacity = 1.0
         count[key]?.apply {
             set(value + 1)

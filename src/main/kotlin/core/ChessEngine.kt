@@ -2,23 +2,18 @@ package core
 
 import Move
 import MoveInfo
-import UI
 import algorithm.checkStatus
+import algorithm.boardScore
 import javafx.application.Platform
 import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleStringProperty
-import javafx.collections.FXCollections
-import javafx.collections.ObservableList
 import kotlinx.coroutines.*
-import objects.ChessBoard
 import objects.ChessTimer
 import objects.Player
-import objects.chessBoard
 import java.util.*
 
 val engine = ChessEngine()
 var AI = Player()
-val dataHistory: ObservableList<MoveData> = FXCollections.observableArrayList()
 class ChessEngine {
     val board = Array<PieceInfo?>(128) { null }
     var mode = GameMode.PvsCOM
@@ -27,9 +22,9 @@ class ChessEngine {
     var player = WHITE
     private var castling = WBMark(w = 0, b = 0)
     var trace: Pair<Pair<Int, Int>, Pair<Int, Int>>? = null
-    var epSquare = EMPTY
+    private var epSquare = EMPTY
     var halfMoves = 0
-    var moveNumber = 1
+    private var moveNumber = 1
     var history = mutableListOf<MoveInfo>()
     private var secs = 0
     val time = SimpleStringProperty("Computation time: 0.000 seconds")
@@ -82,7 +77,7 @@ class ChessEngine {
         /* check for valid square */
         if (square !in SQUARES) { return false }
 
-        val sq = SQUARES[square]!!
+        val sq = SQUARES[square]
 
         /* don't let the user place more than one king */
         if (piece.type == KING &&
@@ -96,7 +91,7 @@ class ChessEngine {
         return true
     }
 
-    fun buildMove(board: Array<PieceInfo?>, from: Int, to: Int, flags: Int, promotion: Char? = null): Move {
+    private fun buildMove(board: Array<PieceInfo?>, from: Int, to: Int, flags: Int, promotion: Char? = null): Move {
         val move = Move(
             color = turn,
             from = from,
@@ -122,7 +117,7 @@ class ChessEngine {
         /* if pawn promotion */
         if (board[from]?.type == PAWN && (rank(to) == RANK_8 || rank(to) == RANK_1)) {
             val pieces = charArrayOf(QUEEN, ROOK, BISHOP, KNIGHT)
-            for((i, p) in pieces.withIndex()) {
+            for(p in pieces) {
                 moves.add(buildMove(board, from, to, flags, p))
             }
         } else {
@@ -131,6 +126,7 @@ class ChessEngine {
     }
 
     fun generateMoves(options: Any? = null): MutableList<Move> {
+        val st = System.currentTimeMillis()
         val moves = mutableListOf<Move>()
         val us = turn
         val them = swapColor(us)
@@ -177,7 +173,7 @@ class ChessEngine {
 
                 /* pawn captures */
                 for (j in 2 until 4) {
-                    val square = i + PAWN_OFFSETS[us]!![j]
+                    val square = i + PAWN_OFFSETS[us][j]
                     if (square and 0x88 != 0) continue
 
                     if (board[square] != null && board[square]?.color == them) {
@@ -260,6 +256,7 @@ class ChessEngine {
             }
             undoMove(true)
         }
+        genTime += System.currentTimeMillis() - st
         return legalMoves
     }
 
@@ -270,7 +267,7 @@ class ChessEngine {
         return mvs
     }
 
-    fun attacked(color: Char, square: Int): Boolean {
+    private fun attacked(color: Char, square: Int): Boolean {
         var i = SQUARES.a8-1
         while(++i <= SQUARES.h1) {
             /* did we run off the end of the board */
@@ -312,11 +309,10 @@ class ChessEngine {
                     if (!blocked) return true
                 }
         }
-
         return false
     }
 
-    fun storeHistory(move: Move) {
+    private fun storeHistory(move: Move) {
         history.add(
             MoveInfo(
                 move = move,
@@ -516,7 +512,7 @@ class ChessEngine {
         return listOf(fen, turn, cflags, epflags, halfMoves, moveNumber).joinToString(" ")
     }
 
-    fun kingAttacked(color: Char) = attacked(swapColor(color), kings[color])
+    private fun kingAttacked(color: Char) = attacked(swapColor(color), kings[color])
 
     fun inCheck() = kingAttacked(turn)
 
@@ -580,7 +576,7 @@ class ChessEngine {
                         insufficientMaterial() ||
                         inThreefoldRepetition()
 
-    fun ascii(): String {
+    fun display(): String {
         var s = "   +------------------------+\n"
         var i = SQUARES.a8
         while(i <= SQUARES.h1) {
@@ -590,13 +586,13 @@ class ChessEngine {
             }
 
             /* empty piece */
-            if (board[i] == null) {
-                s += " . "
+            s += if (board[i] == null) {
+                " . "
             } else {
                 val piece = board[i]!!.type
                 val color = board[i]!!.color
                 val symbol = if(color == WHITE) piece.uppercaseChar() else piece.lowercaseChar()
-                s += " $symbol "
+                " $symbol "
             }
 
             if ((i + 1) and 0x88 != 0) {
@@ -609,10 +605,6 @@ class ChessEngine {
         s += "     a  b  c  d  e  f  g  h\n"
 
         return s
-    }
-
-    fun display(chessBoard: ChessBoard) {
-
     }
 
     internal fun showComputationTime() {
@@ -648,6 +640,16 @@ class ChessEngine {
     }
 }
 
-fun pushMove(move: Move, time: Double, nodeVisited: Int) {
-    dataHistory.add(0, MoveData(move.piece, "${sqLoc(move.from)} -> ${sqLoc(move.to)}", captured = move.captured?: '-', color = move.color, eval = time, nodeVisited = nodeVisited))
+fun pushMove(move: Move, time: Double, nodeVisited: Int, fen: String) {
+    dataHistory.add(0, MoveData(move.piece, "${sqLoc(move.from)} -> ${sqLoc(move.to)}", captured = move.captured?: '-', color = move.color, eval = time, nodeVisited = nodeVisited, pFen = fen, move.from, move.to))
+    val index = if(move.color == 'w') WHITE_ORD else BLACK_ORD
+    val score = if(move.color == 'b' ) boardScore else -boardScore
+
+    with(stats[index]) {
+        this.score = score
+        moves++
+        totalTime += time
+        avgTime = totalTime/moves
+        stats[index] = Statistic(color, score, moves, (totalTime*1000).toInt()/1000.0, (avgTime*1000).toInt()/1000.0)
+    }
 }

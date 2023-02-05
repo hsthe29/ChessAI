@@ -1,19 +1,17 @@
 package objects
 
-import COMPUTING
 import Move
 import algorithm.checkStatus
-import algorithm.findRandomMove
-import algorithm.performBestMove
 import core.*
-import javafx.beans.property.SimpleStringProperty
 import javafx.event.EventTarget
 import javafx.geometry.Insets
 import javafx.scene.Node
 import javafx.scene.image.ImageView
+import javafx.scene.layout.BorderPane
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.StackPane
-import kotlinx.coroutines.*
+import javafx.scene.text.Font
+import javafx.scene.text.Text
 import tornadofx.*
 
 class Cell(private val row: Int, private val col: Int): StackPane() {
@@ -65,21 +63,46 @@ class Cell(private val row: Int, private val col: Int): StackPane() {
 
 val chessBoard = ChessBoard()
 
-class ChessBoard : GridPane() {
+class ChessBoard: BorderPane() {
     private var moves = listOf<Move>()
     private var active: Pair<Int, Int>? = null
     private val cells = Array(8) { i -> Array(8) { j -> Cell(i, j) } }
+    private val grid = GridPane()
+    private val horizontalAxis = GridPane()
+    private val verticalAxis = GridPane()
     val carts = Cart()
     init {
-        this.padding = Insets(10.0, 10.0, 10.0, 10.0)
+        // top right bottom left
+        grid.padding = Insets(10.0, 20.0, 0.0, 0.0)
+        horizontalAxis.padding = Insets(0.0, 0.0, 0.0, 40.0)
+        verticalAxis.padding = Insets(10.0, 0.0, 0.0, 0.0)
         for(i in 0 until 8) {
             for (j in 0 until 8) {
                 cells[i][j].setOnMouseClicked {
                     cellClick(i, j)
                 }
-                this.add(cells[i][j], j, i)
+                this.grid.add(cells[i][j], j, i)
             }
         }
+        "abcdefgh".forEachIndexed { i, c ->
+            val stp = StackPane()
+            stp.add(ImageView("backgrounds/horizontalAxBg.png"))
+            stp.add(Text(c.toString()).apply {
+                font = Font.font(20.0)
+            })
+            horizontalAxis.add(stp, i, 0)
+        }
+        "87654321".forEachIndexed { i, c ->
+            val stp = StackPane()
+            stp.add(ImageView("backgrounds/verticalAxBg.png"))
+            stp.add(Text(c.toString()).apply {
+                font = Font.font(20.0)
+            })
+            verticalAxis.add(stp, 0, i)
+        }
+        bottom = horizontalAxis
+        left = verticalAxis
+        center = grid
     }
 
     private fun cellClick(row: Int, col: Int) {
@@ -142,6 +165,33 @@ class ChessBoard : GridPane() {
         checkStatus(color)
     }
 
+    fun loadFromFEN(fen: String, from: Int, to: Int) {
+        for(i in 0 until 8) {
+            for(j in 0 until 8) {
+                cells[i][j].resetState()
+            }
+        }
+        var square = 0
+        for (element in fen) {
+            if (element == '/') {
+                square += 8
+            } else if (isDigit(element)) {
+                square += element.digitToInt()
+            } else {
+                val color = if (element < 'a') WHITE else BLACK
+                val sq = Pair(rank(square), file(square))
+                cells[sq.first][sq.second].display(PieceInfo(type = element.lowercaseChar(), color = color))
+                square++
+            }
+        }
+        val from = Pair(rank(from), file(from))
+        val to = Pair(rank(to), file(to))
+        cells[from.first][from.second].addEffect(ImageView(traceImg))
+        cells[to.first][to.second].addEffect(ImageView(traceImg))
+        cells[from.first][from.second].moveTop()
+        cells[to.first][to.second].moveTop()
+    }
+
     fun update() {
         val board = engine.board
         for(i in 0 until 8) {
@@ -164,13 +214,12 @@ class ChessBoard : GridPane() {
             if(cells[row][col].occupied)
                 cells[row][col].addEffect(ImageView(attackedImg).apply{ opacity = 0.6 })
         }
-        println("trace: ${engine.trace}")
         engine.trace?.let{
-            cells[it.first.first][it.first.second].addEffect(ImageView(traceImg).apply{ opacity = 0.6 })
-            cells[it.second.first][it.second.second].addEffect(ImageView(traceImg).apply{ opacity = 0.6 })
+            cells[it.first.first][it.first.second].addEffect(ImageView(traceImg))
+            cells[it.second.first][it.second.second].addEffect(ImageView(traceImg))
         }
         active?.let {
-            cells[it.first][it.second].addEffect(ImageView(traceImg))
+            cells[it.first][it.second].addEffect(ImageView(activeImg))
         }
 
         for(i in 0 until 8) {

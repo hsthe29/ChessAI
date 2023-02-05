@@ -1,14 +1,10 @@
 package view
 
 import Styles
-import core.MoveData
-import core.dataHistory
-import core.engine
+import UI
+import core.*
 import javafx.application.Platform
-import javafx.geometry.Pos
 import javafx.scene.control.cell.PropertyValueFactory
-import javafx.scene.layout.StackPane
-import javafx.scene.layout.VBox
 import javafx.scene.text.Font
 import javafx.scene.text.FontWeight
 import javafx.scene.text.Text
@@ -17,17 +13,19 @@ import kotlinx.coroutines.launch
 import objects.chessBoard
 import tornadofx.*
 
+
 class GameView : View("ChessAI") {
     private lateinit var timeLabel: Text
     private lateinit var turnLabel: Text
 
     override val root = stackpane {
-        setPrefSize(1200.0, 820.0)
+        setPrefSize(1280.0, 820.0)
+        addClass(Styles.frame)
         vbox {
             hbox {
                 add(chessBoard)
                 line { startX = 0.0; startY = 0.0
-                    endX = 0.0; endY = 660.0
+                    endX = 0.0; endY = 690.0
                     addClass(Styles.line)
                 }
                 vbox(spacing = 20) {
@@ -45,68 +43,116 @@ class GameView : View("ChessAI") {
                     }
                     turnLabel = text(engine.thinking).apply {
                         paddingLeft = 20
-//                        this.translateY = 20.0
                         font = Font.font("Helvetica", FontWeight.BOLD, 25.0)
                     }
                     timeLabel = text(engine.time).apply {
                         paddingLeft = 20
-//                        this.translateY = 30.0
                         font = Font.font("Helvetica", FontWeight.BOLD, 30.0)
                     }
 
                     tableview<MoveData> {
+                        maxWidth = 520.0
+                        minWidth = 520.0
                         column("Piece", Char::class) {
-                            setCellValueFactory(PropertyValueFactory("piece"))
+                            cellValueFactory = PropertyValueFactory("piece")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
                         }
                         column("Move", String::class) {
                             minWidth = 65.0
-                            setCellValueFactory(PropertyValueFactory("move"))
+                            cellValueFactory = PropertyValueFactory("move")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
                         }
                         column("Captured", Char::class) {
-                            setCellValueFactory(PropertyValueFactory("captured"))
+                            cellValueFactory = PropertyValueFactory("captured")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
                         }
                         column("Color", Char::class) {
-                            setCellValueFactory(PropertyValueFactory("color"))
+                            cellValueFactory = PropertyValueFactory("color")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
                         }
                         column("Time (s)", Double::class) {
-                            setCellValueFactory(PropertyValueFactory("eval"))
+                            cellValueFactory = PropertyValueFactory("eval")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
                         }
                         column("Visited nodes", Int::class) {
-                            setCellValueFactory(PropertyValueFactory("nodeVisited"))
+                            minWidth = 120.0
+                            maxWidth = 120.0
+                            cellValueFactory = PropertyValueFactory("nodeVisited")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
+                        }
+                        onLeftClick {
+                            if(engine.endGame.value) {
+                                val data = this.selectedItem
+                                if (data != null) {
+                                    chessBoard.loadFromFEN(data.pFen, data.from, data.to)
+                                }
+                            }
                         }
                         items = dataHistory
                     }
+                    tableview<Statistic> {
+                        column("", Char::class) {
+                            cellValueFactory = PropertyValueFactory("color")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
+                        }
+                        column("Score", String::class) {
+                            minWidth = 70.0
+                            maxWidth = 70.0
+                            cellValueFactory = PropertyValueFactory("score")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
+                        }
+                        column("Moves", String::class) {
+                            minWidth = 70.0
+                            maxWidth = 70.0
+                            cellValueFactory = PropertyValueFactory("moves")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
+                        }
+                        column("Total Time (s)", Char::class) {
+                            minWidth = 120.0
+                            maxWidth = 120.0
+                            cellValueFactory = PropertyValueFactory("totalTime")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
+                        }
+                        column("Avg Time (s)", Char::class) {
+                            minWidth = 120.0
+                            maxWidth = 120.0
+                            cellValueFactory = PropertyValueFactory("avgTime")
+                            style = "-fx-font-weight:bold;-fx-font-size:16px;-fx-alignment: CENTER"
+                        }
+                        fixedCellSize = 30.0
+                        minHeight = 95.0
+                        maxHeight = 95.0
+                        items = stats
+                    }
+                    label("")
                 }
             }
             line {
                 startX = 0.0; startY = 0.0
-                endX = 1200.0; endY = 0.0
+                endX = 1280.0; endY = 0.0
                 addClass(Styles.line)
             }
             hbox {
+                label("") { paddingTop = 110 }
                 label("WHITE: ") {
+                    style = "-fx-font-weight:bold;-fx-font-size:20px"
                     paddingLeft = 130
                     translateY = 50.0
                 }
                 add(chessBoard.carts.yourItems.apply {
-                    paddingLeft = 40
+                    paddingLeft = 10
                     paddingRight = 30
-                    paddingTop = 20
+                    paddingTop = 10
                 })
-                line {
-                    startX = 0.0; startY = 0.0
-                    endX = 0.0; endY = 150.0
-                    addClass(Styles.line)
-                }
+
                 label("BLACK: ") {
-                    minWidth = 50.0
-                    paddingLeft = 60
+                    style = "-fx-font-weight:bold;-fx-font-size:20px"
+                    paddingLeft = 80
                     translateY = 50.0
                 }
                 add(chessBoard.carts.opponentItems.apply{
-                    paddingLeft = 40
-                    paddingRight = 30
-                    paddingTop = 20
+                    paddingLeft = 10
+                    paddingTop = 10
                 })
             }
         }
@@ -128,8 +174,8 @@ class GameView : View("ChessAI") {
         }
     }
 
-    fun onEndGame() {
-        find<EngameView>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
+    private fun onEndGame() {
+        find<EndgameView>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
     }
 }
 

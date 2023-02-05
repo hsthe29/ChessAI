@@ -9,22 +9,26 @@ import kotlin.math.min
 
 data class Bound(var lower: Int, var upper: Int)
 
-class MTDSearch() {
+class MTDSearch {
     var nodesVisited = 0
     private var totalNode = 0
-    var lower = Int.MIN_VALUE
-    var upper = Int.MAX_VALUE
+    private var lower = Int.MIN_VALUE
+    private var upper = Int.MAX_VALUE
 
-    /** Iterative deepening MTD-bi search */
     fun search(depth: Int): Move? {
         nodesVisited = 0
         totalNode = 0
         _search(100, depth, engine.turn)
+
+        println("""| End MTD(f): 
+                   |        Visited Nodes: $nodesVisited
+                   |        Cutoff: ${totalNode - nodesVisited} branches""".trimMargin("|"))
+
         val fen = engine.generateFEN()
             .split(' ')
             .slice(0 until 4)
             .joinToString(" ") + true
-        println(fen)
+
         return TranspositionTable.getMove(fen)
     }
 
@@ -32,17 +36,18 @@ class MTDSearch() {
         lower = Int.MIN_VALUE
         upper = Int.MAX_VALUE
         var iter = 50
-
-        val currentSum = if (color == BLACK) globalSum else -globalSum
+        val currentSum = if (color == BLACK) boardScore else -boardScore
         var score = firstGuess + currentSum
-
         while(iter-- > 0 && (lower < upper)) {
             val beta = if(score == lower) score+1 else score
             score = tpMinimax(engine, depth,beta-1, beta, true, color, currentSum, null, root = true)
             if(score < beta) upper = score else lower = score
-            println("lower: $lower, upper: $upper")
+            println("       MTD(f): lower: $lower, upper: $upper")
         }
         return score
+    }
+    private fun deepeningSearch() {
+
     }
 
 
@@ -65,11 +70,25 @@ class MTDSearch() {
         } else score = Bound(lower, upper)
         val moves = engine.allMoves()
         moves.shuffle()
-        val sum = if(move != null) evaluateBoard(engine, move.copy(), prevSum, color) else prevSum
+
+        // ---------------------------
+        val inCheckmate = engine.inCheck && engine.lenMoves == 0
+        val inStalemate = !engine.inCheck && engine.lenMoves == 0
+        val inDraw = engine.halfMoves >= 100 || inStalemate || engine.insufficientMaterial() || engine.inThreefoldRepetition()
+        var sum = prevSum
+        if (inCheckmate) {
+            // Opponent is in checkmate (good for us)
+            sum = if (move!!.color == color) 100000
+            // Our king's in checkmate (bad for us)
+            else -100000
+        }
+        else if (inDraw) { sum = 0 }
+        // ----------------------------
+        val cut = inCheckmate || inDraw
+        if(!cut) if(move != null) sum = evaluateBoard(engine, move.copy(), prevSum, color)
         var result = sum
         var bestMove: Move? = null
-
-        if(depth > 0 && moves.isNotEmpty()) {
+        if(!cut && depth > 0 && moves.isNotEmpty()) {
             totalNode += moves.size
             if(isMaximizing) {
                 result = Int.MIN_VALUE
