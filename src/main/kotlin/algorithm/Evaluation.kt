@@ -5,7 +5,7 @@ import core.*
 
 fun Array<IntArray>.copy() = Array(size) { get(it).clone() }
 
-val weights = hashMapOf('p' to 90, 'n' to 280, 'b' to 350, 'r' to 419, 'q' to 929, 'k' to 60000, 'e' to 60000)
+val weights = hashMapOf('p' to 100, 'n' to 280, 'b' to 320, 'r' to 479, 'q' to 929, 'k' to 60000, 'e' to 60000)
 val pst_w = hashMapOf(
     'p' to arrayOf(
         intArrayOf(100, 100, 100, 100, 105, 100, 100, 100),
