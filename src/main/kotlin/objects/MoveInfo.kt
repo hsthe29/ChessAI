@@ -1,3 +1,5 @@
+package objects
+
 import core.*
 
 data class SpecialMoves(val enPassant: Pair<Int, Int>?, var wk: Boolean, var wq: Boolean, var bk: Boolean, var bq: Boolean)

@@ -1,7 +1,6 @@
 package core
 
-import Move
-import MoveInfo
+import algorithm.TranspositionTable
 import algorithm.checkStatus
 import algorithm.boardScore
 import javafx.application.Platform
@@ -9,6 +8,8 @@ import javafx.beans.property.SimpleBooleanProperty
 import javafx.beans.property.SimpleStringProperty
 import kotlinx.coroutines.*
 import objects.ChessTimer
+import objects.Move
+import objects.MoveInfo
 import objects.Player
 import java.util.*
 
@@ -34,8 +35,29 @@ class ChessEngine {
     private val threeRep = hashSetOf<String>()
     var inCheck = false
     var lenMoves = 0
-    var endGame = SimpleBooleanProperty(false)
+    val endGame = SimpleBooleanProperty(false)
     init {
+        loadFEN(DEFAULT_POSITION)
+    }
+
+    fun clear() {
+        for(i in 0 until 128) board[i] = null
+        boardScore = 0
+        kings = WBMark(w =  EMPTY, b = EMPTY)
+        turn = '-'
+        castling = WBMark(w = 0, b = 0)
+        epSquare = EMPTY
+        halfMoves = 0
+        moveNumber = 1
+        trace = null
+        history = mutableListOf()
+        positions.clear()
+        threeRep.clear()
+        TranspositionTable.clearTable()
+        dataHistory.clear()
+        stats[0] = Statistic("WHITE", 0, 0,0.0, 0.0)
+        stats[1] = Statistic("BLACK", 0, 0, 0.0, 0.0)
+        endGame.set(false)
         loadFEN(DEFAULT_POSITION)
     }
 
@@ -624,7 +646,7 @@ class ChessEngine {
     fun search() {
         GlobalScope.launch {
             if (mode == GameMode.PvsCOM) {
-                if (turn == BLACK) {
+                if (turn == BLACK && !engine.endGame.value) {
                     AI.searchBestMove()
                     val color = if (turn == BLACK) "BLACK" else "WHITE"
                     checkStatus(color)

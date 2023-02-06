@@ -1,11 +1,25 @@
 package algorithm
 
-import Move
 import core.*
+import objects.Move
 
 fun Array<IntArray>.copy() = Array(size) { get(it).clone() }
 
-val weights = hashMapOf('p' to 100, 'n' to 280, 'b' to 320, 'r' to 479, 'q' to 929, 'k' to 60000, 'e' to 60000)
+object WEIGHTS: Object<Int>() {
+    val p = 100
+    val n = 280
+    val b = 320
+    val r = 479
+    val q = 929
+    val k = 60000
+    val e = 60000
+
+    init { mapping() }
+}
+
+const val ALPHA = Int.MIN_VALUE
+const val BETA = Int.MAX_VALUE
+
 val pst_w = hashMapOf(
     'p' to arrayOf(
         intArrayOf(100, 100, 100, 100, 105, 100, 100, 100),
@@ -125,12 +139,12 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
     if (move.captured != null) {
         if (move.color == color) {
             sum +=
-                weights[move.captured]!! +
+                WEIGHTS[move.captured!!] +
                         pstOpponent[move.color]!![move.captured]!![to[0]][to[1]]
         }
         else {
             sum -=
-                weights[move.captured]!! +
+                WEIGHTS[move.captured!!] +
                         pstYou[move.color]!![move.captured]!![to[0]][to[1]]
         }
     }
@@ -138,12 +152,12 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
     if ((BITS.PROMOTION and move.flags) != 0) {
         move.promotion = 'q'
         if (move.color == color) {
-            sum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
-            sum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
+            sum -= WEIGHTS[move.piece] + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum += WEIGHTS[move.promotion!!] + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
         else {
-            sum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
-            sum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
+            sum += WEIGHTS[move.piece] + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum -= WEIGHTS[move.promotion!!] + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
     } else {
         if (move.color != color) {
@@ -174,14 +188,8 @@ fun evalBoardScore(engine: ChessEngine, move: Move, prevSum: Int, color: Char): 
         else -50
     }
 
-    val from = intArrayOf(
-        8 - sqLoc(move.from)[1].digitToInt(),
-        sqLoc(move.from).codePointAt(0) - 'a'.code
-    )
-    val to = intArrayOf(
-        8 - sqLoc(move.to)[1].digitToInt(),
-        sqLoc(move.to).codePointAt(0) - 'a'.code
-    )
+    val from = intArrayOf(rank(move.from), file(move.from))
+    val to = intArrayOf(rank(move.to), file(move.to))
 
     // Change endgame behavior for kings
     if (sum < -1500) {
@@ -198,13 +206,13 @@ fun evalBoardScore(engine: ChessEngine, move: Move, prevSum: Int, color: Char): 
         // Opponent piece was captured (good for us)
         if (move.color == color) {
             sum +=
-                weights[move.captured]!! +
+                WEIGHTS[move.captured!!] +
                         pstOpponent[move.color]!![move.captured]!![to[0]][to[1]]
         }
         // Our piece was captured (bad for us)
         else {
             sum -=
-                weights[move.captured]!! +
+                WEIGHTS[move.captured!!] +
                         pstYou[move.color]!![move.captured]!![to[0]][to[1]]
         }
     }
@@ -215,13 +223,13 @@ fun evalBoardScore(engine: ChessEngine, move: Move, prevSum: Int, color: Char): 
 
         // Our piece was promoted (good for us)
         if (move.color == color) {
-            sum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
-            sum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
+            sum -= WEIGHTS[move.piece] + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum += WEIGHTS[move.promotion!!] + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
         // Opponent piece was promoted (bad for us)
         else {
-            sum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
-            sum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
+            sum += WEIGHTS[move.piece] + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
+            sum -= WEIGHTS[move.promotion!!] + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
     } else {
         // The moved piece still exists on the updated board, so we only need to update the position value
@@ -235,6 +243,41 @@ fun evalBoardScore(engine: ChessEngine, move: Move, prevSum: Int, color: Char): 
     }
     return sum
 }
+
+private fun positionScore(engine: ChessEngine): Int {
+    var score = 0
+    var i = SQUARES.a8-1
+    while(++i <= SQUARES.h1) {
+        if((i and 0x88) != 0) {
+            i+=7
+            continue
+        }
+        val piece = engine.board[i] ?: continue
+        val row = rank(i)
+        val col = file(i)
+        val temp = pstYou[piece.color]!![piece.type]!![row][col]
+        score += if(piece.color == engine.turn) temp else -temp
+    }
+    return score
+}
+
+private fun materialScore(engine: ChessEngine): Int {
+    var score = 0
+    var i = SQUARES.a8 -1
+    while(++i <= SQUARES.h1) {
+        if((i and 0x88) != 0) {
+            i+=7
+            continue
+        }
+        val piece = engine.board[i] ?: continue
+        val temp = WEIGHTS[piece.type]
+        score += if(piece.color == engine.turn) temp else -temp
+    }
+    return score
+}
+
+fun basicEval(engine: ChessEngine): Int
+        = positionScore(engine) + materialScore(engine)
 
 fun checkStatus(color: String): Boolean {
     if (engine.inCheckmate()) {

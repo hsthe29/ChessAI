@@ -1,9 +1,9 @@
 package objects
 
-import Move
+import algorithm.boardScore
 import algorithm.checkStatus
+import algorithm.evalBoardScore
 import core.*
-import javafx.event.EventTarget
 import javafx.geometry.Insets
 import javafx.scene.Node
 import javafx.scene.image.ImageView
@@ -12,9 +12,10 @@ import javafx.scene.layout.GridPane
 import javafx.scene.layout.StackPane
 import javafx.scene.text.Font
 import javafx.scene.text.Text
+import kotlinx.coroutines.launch
 import tornadofx.*
 
-class Cell(private val row: Int, private val col: Int): StackPane() {
+class Cell(row: Int, col: Int): StackPane() {
     private val effects = mutableSetOf<Node>()
     var piece: Piece? = null
         set(value) {
@@ -106,7 +107,7 @@ class ChessBoard: BorderPane() {
     }
 
     private fun cellClick(row: Int, col: Int) {
-        if(engine.turn != engine.player && engine.endGame.value) return
+        if(engine.turn != engine.player || engine.endGame.value || GameMode.COMvsCOM == engine.mode) return
         val loc = LOCATION[row][col]
         if(active == null) {
             if(cells[row][col].occupied) {
@@ -154,12 +155,20 @@ class ChessBoard: BorderPane() {
             val rev = engine.board[move.to]!!.copy()
             chessBoard.carts.updateCart(rev)
         }
+        boardScore = evalBoardScore(engine, move.copy(), boardScore, 'b')
         engine.makeMove(move)
-        val row = rank(move.to)
-        val col = file(move.to)
+        val fen = engine.generateFEN()
+            .split(' ')[0]
+        engine.thinking.set("Thinking: ${if(engine.turn == BLACK) "BLACK" else "WHITE"}")
+        if (engine.turn == BLACK) {
+            checkStatus("BLACK")
+        } else {
+            checkStatus("WHITE")
+        }
+        pushMove(move, 0.0, 0, fen)
         engine.trace = Pair(
-            Pair(8 - sqLoc(move.from)[1].digitToInt(), sqLoc(move.from).codePointAt(0) - 'a'.code),
-            Pair(8 - sqLoc(move.to)[1].digitToInt(), sqLoc(move.to).codePointAt(0) - 'a'.code))
+            Pair(rank(move.from), file(move.from)),
+            Pair(rank(move.to), file(move.to)))
         update()
         val color = if (engine.turn == BLACK) "BLACK" else "WHITE"
         checkStatus(color)
@@ -192,6 +201,15 @@ class ChessBoard: BorderPane() {
         cells[to.first][to.second].moveTop()
     }
 
+    fun clearBoard() {
+        carts.reset()
+        for(i in 0 until 8) {
+            for(j in 0 until 8) {
+                cells[i][j].resetState()
+            }
+        }
+    }
+
     fun update() {
         val board = engine.board
         for(i in 0 until 8) {
@@ -207,6 +225,11 @@ class ChessBoard: BorderPane() {
             }
         }
 
+        engine.trace?.let{
+            cells[it.first.first][it.first.second].addEffect(ImageView(traceImg))
+            cells[it.second.first][it.second.second].addEffect(ImageView(traceImg))
+        }
+
         for(move in moves) {
             val row = rank(move.to)
             val col = file(move.to)
@@ -214,10 +237,7 @@ class ChessBoard: BorderPane() {
             if(cells[row][col].occupied)
                 cells[row][col].addEffect(ImageView(attackedImg).apply{ opacity = 0.6 })
         }
-        engine.trace?.let{
-            cells[it.first.first][it.first.second].addEffect(ImageView(traceImg))
-            cells[it.second.first][it.second.second].addEffect(ImageView(traceImg))
-        }
+
         active?.let {
             cells[it.first][it.second].addEffect(ImageView(activeImg))
         }
@@ -229,6 +249,3 @@ class ChessBoard: BorderPane() {
         }
     }
 }
-
-inline fun EventTarget.chessBoard(op: ChessBoard.() -> Unit = {}) =
-    opcr(this, ChessBoard(), op)

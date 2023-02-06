@@ -9,7 +9,6 @@ class ChessTimer(private val engine: ChessEngine) {
     private var now = 0L
 
     private inline fun start(cycleCount: Int = 600, crossinline action: () -> Unit) = GlobalScope.launch {
-//        delay(100)
         var temp = 0
         while (temp++ < cycleCount) {
             withContext(Dispatchers.Main) {
@@ -33,6 +32,4 @@ class ChessTimer(private val engine: ChessEngine) {
         this.timer!!.cancel()
         return now - last
     }
-
-
 }

@@ -1,19 +1,19 @@
 package objects
 
-import algorithm.MTDSearch
-import algorithm.checkStatus
-import algorithm.performBestMove
+import algorithm.*
 import core.*
 import kotlinx.coroutines.*
 
+const val MTD = 0
+const val MINIMAX = 1
+val SearchMode = WBMark(w = MTD, b = MTD)
 class Player {
-    private val searcher = MTDSearch()
+    private val searcher = Searcher()
 
     suspend fun searchBestMove() {
         delay(500)
         engine.timer.startTimer()
         val (move, piece) = withContext(COMPUTING.coroutineContext) {
-            // computation move here
             performBestMove(searcher.search(wbDepth[engine.turn])!!)
         }
         val time = engine.timer.stopTimer()
@@ -35,4 +35,13 @@ class Player {
             pushMove(move, time/1000.0, searcher.nodesVisited, fen)
         }
     }
+}
+
+fun performBestMove(move: Move): Pair<Move, PieceInfo?> {
+    println("old: $boardScore")
+    boardScore = evalBoardScore(engine, move.copy(), boardScore, 'b')
+    println("new: $boardScore")
+    val piece = engine.board[move.to]
+    engine.makeMove(move)
+    return Pair(move, piece)
 }

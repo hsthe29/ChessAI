@@ -93,4 +93,11 @@ class Cart {
             set(value + 1)
         }
     }
+
+    fun reset() {
+        for(i in cells.values)
+            i.opacity = 0.3
+        for(i in count.values)
+            i.set(0)
+    }
 }

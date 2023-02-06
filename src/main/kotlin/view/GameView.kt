@@ -161,13 +161,17 @@ class GameView : View("ChessAI") {
     init {
         currentWindow?.setOnCloseRequest { Platform.exit() }
         engine.endGame.onChange {
-            UI.launch {
-                onEndGame()
+            if(it) {
+                UI.launch {
+                    onEndGame()
+                }
             }
         }
     }
     private fun startGame() {
-        find<Config>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
+        chessBoard.clearBoard()
+        engine.clear()
+        find<GameModeView>().openWindow(modality = Modality.APPLICATION_MODAL, block = true, resizable = false)
         if(engine.turn != '-') {
             chessBoard.update()
             engine.search()

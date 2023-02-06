@@ -1,6 +1,6 @@
 package algorithm
 
-import Move
+import objects.Move
 
 object TranspositionTable {
     private val BUFFER_SIZE = 600_000
@@ -27,5 +27,10 @@ object TranspositionTable {
             this.tpMove.clear()
 
         this.tpMove[fen] = value
+    }
+
+    fun clearTable() {
+        tpScore.clear()
+        tpMove.clear()
     }
 }
