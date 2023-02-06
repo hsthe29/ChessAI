@@ -100,14 +100,10 @@ var boardScore = 0
  */
 fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): Int {
     var sum = prevSum
-
     if (engine.inCheck) {
-        // Opponent is in check (good for us)
         sum += if (move.color == color) 50
-        // Our king's in check (bad for us)
         else -50
     }
-
     val from = intArrayOf(
         8 - sqLoc(move.from)[1].digitToInt(),
         sqLoc(move.from).codePointAt(0) - 'a'.code
@@ -116,7 +112,6 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
         8 - sqLoc(move.to)[1].digitToInt(),
         sqLoc(move.to).codePointAt(0) - 'a'.code
     )
-
     // Change endgame behavior for kings
     if (sum < -1500) {
         if (move.piece == 'k') {
@@ -127,15 +122,12 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
            move.captured = 'e'
          }
     }
-
     if (move.captured != null) {
-        // Opponent piece was captured (good for us)
         if (move.color == color) {
             sum +=
                 weights[move.captured]!! +
                         pstOpponent[move.color]!![move.captured]!![to[0]][to[1]]
         }
-        // Our piece was captured (bad for us)
         else {
             sum -=
                 weights[move.captured]!! +
@@ -144,21 +136,16 @@ fun evaluateBoard(engine: ChessEngine, move: Move, prevSum: Int, color: Char): I
     }
 
     if ((BITS.PROMOTION and move.flags) != 0) {
-        // NOTE: promote to queen for simplicity
         move.promotion = 'q'
-
-        // Our piece was promoted (good for us)
         if (move.color == color) {
             sum -= weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
             sum += weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
-        // Opponent piece was promoted (bad for us)
         else {
             sum += weights[move.piece]!! + pstYou[move.color]!![move.piece]!![from[0]][from[1]]
             sum -= weights[move.promotion]!! + pstYou[move.color]!![move.promotion]!![to[0]][to[1]]
         }
     } else {
-        // The moved piece still exists on the updated board, so we only need to update the position value
         if (move.color != color) {
             sum += pstYou[move.color]!![move.piece]!![from[0]][from[1]]
             sum -= pstYou[move.color]!![move.piece]!![to[0]][to[1]]
